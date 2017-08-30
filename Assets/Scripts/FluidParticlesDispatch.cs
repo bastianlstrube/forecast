@@ -417,6 +417,7 @@ public class FluidParticlesDispatch : MonoBehaviour
         particleMaterial.SetVector("_Size", particleSize);
         particleMaterial.SetFloat("_SizeByVelocity", sizeByVelocity);
         particleMaterial.SetVector("_worldPos", transform.position);
+        particleMaterial.SetVector("_localScale", transform.localScale);
 
         Graphics.DrawProcedural(MeshTopology.Points, particleBuffer.count);
 
