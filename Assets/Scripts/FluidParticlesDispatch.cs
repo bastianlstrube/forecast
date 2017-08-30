@@ -4,8 +4,7 @@ using UnityEngine;
 
 public class FluidParticlesDispatch : MonoBehaviour
 {
-
-    // A definition for a 3D vector of integers
+    // Vector of ints rather than floats
     [System.Serializable]
     public struct IntVector3
     {
@@ -13,6 +12,7 @@ public class FluidParticlesDispatch : MonoBehaviour
         public int y;
         public int z;
 
+        // Constructor
         public IntVector3(int _x, int _y, int _z)
         {
             x = _x;
@@ -21,11 +21,15 @@ public class FluidParticlesDispatch : MonoBehaviour
         }
     }
 
+    // This struct basically exists just to collapse the lifespan properties in the inspector
+    // TODO: replace this with a custom editor
     [System.Serializable]
     public struct LifeSpanStruct
     {
         public float min;
         public float max;
+
+        // Constructor
         public LifeSpanStruct(float _min, float _max)
         {
             min = _min;
@@ -33,15 +37,17 @@ public class FluidParticlesDispatch : MonoBehaviour
         }
     }
 
+    // Data representing a single particle, just so I can initialise on the CPU before passing to the GPU
     public struct Particle
     {
-        public Vector3 position;
-        public Vector3 velocity;
-        public Vector4 color;
-        public float timeElapsed;
-        public float lifeSpan;
-        public Vector3 spawnPosition;
+        public Vector3 position;        //
+        public Vector3 velocity;        //
+        public Vector4 color;           //
+        public float timeElapsed;       // How long this particle has lived
+        public float lifeSpan;          //
+        public Vector3 spawnPosition;   // Initial spawn position never changes
 
+        // Constructor
         public Particle(Vector3 _position, Vector3 _velocity, Vector4 _color, float _timeElapsed, float _lifeSpan, Vector3 _spawnPosition)
         {
             position = _position;
@@ -53,56 +59,62 @@ public class FluidParticlesDispatch : MonoBehaviour
         }
     }
 
-    [Header("Shaders")]
-    //public ComputeShader fluidSourcesComputeShader;
+    [Header("Compute Shaders")]
+    // Computing the sources of velocity
+    public ComputeShader fluidSourcesComputeShader;
     public ComputeShader fluidAffectorComputeShader;
+
+    // Fluid diffusion and self advection
     public ComputeShader diffuseFluidComputeShader;
     public ComputeShader advectFluidComputeShader;
     
-    // PROJECTION STEPS
+    // Fluid projection to make the flow more natural
     public ComputeShader divergenceComputeShader;
-    public ComputeShader jacobiComputeShader;   // multiple iterations
+    public ComputeShader jacobiComputeShader;       // multiple iterations
     public ComputeShader projectionComputeShader;
 
+    // Push the particles around
     public ComputeShader advectParticlesComputeShader;
 
+    // Used for debugging the fluid vector field
     public ComputeShader vectorMeshComputeShader;
 
-    public Shader particleSurfaceShader;
+    [Header("Surface Shaders")]
+    public Shader particleSurfaceShader;    // billboard particle shader
     public Shader vectorSurfaceShader;
-
+    
     [Space(10.0f)]
     [Header("Fluid Solver Attributes")]
-    public IntVector3 velocityBoxSize = new IntVector3(64, 64, 64);   // length of the sides of the particle box 
-    public float diffusionRate = 0.1f;
+    public IntVector3 velocityBoxSize = new IntVector3(64, 64, 64);   // How large the vector field is for computing the fluid movement
+    public float diffusionRate = 0.02f;     // How quickly velocities diffuse through the liquid
     public bool drawVelocityVectors = false;
     public bool useRandomStartVelocities = false;
 
     [Space(10.0f)]
     [Header("Particle System Attributes")]
-    public int numParticles = 65535;
+    public int numParticles = 1048575;
     [Range(0,1)]
-    public float drag = 0.9f;
+    public float drag = 0.9f;   // drag on the particles, not the fluid viscosity
     public Vector3 constantForces = Vector3.zero;
 
     [Space(10.0f)]
     [Header("Fluid Affector Properties")]
-    public Transform affector;
-    public float affectorSize = 1f;
+    public Transform affector;  // a gameobject for manually adding velocity to the fluid
+    public float affectorSize = 2f; // the radius around the object affected by its movement
     [Range(0,2)]
     public float affectorVelocityScale = 1f;
 
     [Space(10.0f)]
     [Header("Particle Properties")]
     public Texture2D particleSprite;
-    public Vector2 particleSize = Vector2.one;
-    public LifeSpanStruct particleLifeSpan = new LifeSpanStruct(1, 5);
-    public float sizeByVelocity = 10.0f;
+    public Vector2 particleSize = new Vector2(0.02f, 0.02f);
+    public LifeSpanStruct particleLifeSpan = new LifeSpanStruct(1f, 3f);
+    public float sizeByVelocity = 200.0f;
     public Color globalTint = Color.white;
-    public bool useVelocityAlpha = true;
+    public bool useVelocityAlpha = false;
 
-    // compute shader buffers for retrieving data from and sending data to the compute shader
-    //private ComputeBuffer fluidSourcesBuffer;
+    // Buffers for storing data in the compute buffer
+    private ComputeBuffer fluidSourcesBuffer;
     private ComputeBuffer flowMapBuffer;
     private ComputeBuffer flowMapBufferPrev;
     private ComputeBuffer particleBuffer;
@@ -110,13 +122,9 @@ public class FluidParticlesDispatch : MonoBehaviour
     private ComputeBuffer pressureBuffer;
     private ComputeBuffer meshPointsBuffer;
 
-    // variables
-    private int boxVolume;  // volume of the box, based off the side length
-    private Vector3 affectorPrev;   // stores previous position of the affector
-
     // kernels
     private int fluidAffectorKernel;
-    //private int fluidSourcesKernel;
+    private int fluidSourcesKernel;
     private int diffuseFluidKernel;
     private int advectFluidKernel;
     private int divergenceKernel;
@@ -129,7 +137,10 @@ public class FluidParticlesDispatch : MonoBehaviour
     private Material vectorMaterial;  // vector material created from the vector shader
     private Material particleMaterial;  // particle material created from the particle shader
 
-    //private OSCReceiver oscReceiver;
+    // Other variables
+    private int boxVolume;          // volume of the box, calculated at runtime from side length
+    private Vector3 affectorPrev;   // used in calculating the velocity of the affector between frames
+    private OSCReceiver oscReceiver;
 
     void Start()
     {
@@ -143,7 +154,7 @@ public class FluidParticlesDispatch : MonoBehaviour
         particleMaterial = new Material(particleSurfaceShader);
 
         // find the compute shader's "main" function and store it
-        //fluidSourcesKernel = fluidSourcesComputeShader.FindKernel("AddFluidSources");
+        fluidSourcesKernel = fluidSourcesComputeShader.FindKernel("AddFluidSources");
         fluidAffectorKernel = fluidAffectorComputeShader.FindKernel("AddFluidAffector");
         diffuseFluidKernel = diffuseFluidComputeShader.FindKernel("DiffuseFluid");
         advectFluidKernel = advectFluidComputeShader.FindKernel("AdvectFluid");
@@ -165,13 +176,13 @@ public class FluidParticlesDispatch : MonoBehaviour
 
         meshPointsBuffer = new ComputeBuffer(boxVolume * 2, sizeof(float) * 3);
 
-        //fluidSourcesBuffer = new ComputeBuffer(OSCReceiver.maxNumSources, sizeof(float) * 6);
+        fluidSourcesBuffer = new ComputeBuffer(OSCReceiver.maxNumSources, sizeof(float) * 6);
 
         InitialiseVectorMap();
         InitialiseParticles();
         InitialiseProjectionBuffers();
 
-        //oscReceiver = GetComponent<OSCReceiver>();
+        oscReceiver = GetComponent<OSCReceiver>();
 
         InitialiseFluidSourcesBuffer();
     }
@@ -217,7 +228,7 @@ public class FluidParticlesDispatch : MonoBehaviour
 
     void InitialiseFluidSourcesBuffer()
     {
-        //fluidSourcesBuffer.SetData(oscReceiver.sourceMap);
+        fluidSourcesBuffer.SetData(oscReceiver.sourceMap);
     }
 
     void AddFluidAffectorVelocity(Vector3 difference)
@@ -237,7 +248,7 @@ public class FluidParticlesDispatch : MonoBehaviour
 
     void AddFluidSources()
     {
-        /*
+        
         if (oscReceiver.hasVelocity)
         {
             fluidSourcesBuffer.SetData(oscReceiver.sourceMap);
@@ -252,7 +263,7 @@ public class FluidParticlesDispatch : MonoBehaviour
 
             oscReceiver.ResetSourceMap();
         }
-        */
+        
     }
 
     void DiffuseFluid(int iterations)
@@ -428,7 +439,7 @@ public class FluidParticlesDispatch : MonoBehaviour
         pressureBuffer.Release();
         particleBuffer.Release();
         meshPointsBuffer.Release();
-        //fluidSourcesBuffer.Release();
+        fluidSourcesBuffer.Release();
 
         DestroyImmediate(vectorMaterial);
         DestroyImmediate(particleMaterial);
