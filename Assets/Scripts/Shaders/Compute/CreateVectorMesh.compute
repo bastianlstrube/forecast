@@ -1,0 +1,30 @@
+﻿#pragma kernel CreateVectorMesh
+
+#define threads_per_group_x 8
+#define threads_per_group_y 8
+#define threads_per_group_z 8
+
+StructuredBuffer<float3> vectorMapBuffer;	// 1 dimensional array of particles
+RWStructuredBuffer<float3> meshPointBuffer;	// 1 dimensional array of particles
+int numThreadGroupsX;	// total number of thread groups
+int numThreadGroupsY;	// total number of thread groups
+int numThreadGroupsZ;	// total number of thread groups
+
+[numthreads(threads_per_group_x, threads_per_group_y, threads_per_group_z)]
+void CreateVectorMesh(uint3 dispatchID : SV_DispatchThreadID)
+{
+	// calculate total threads in the each dimension of whole box volume
+	int totalThreadsX = threads_per_group_x * numThreadGroupsX;
+	int totalThreadsY = threads_per_group_y * numThreadGroupsY;
+	int totalThreadsZ = threads_per_group_z * numThreadGroupsZ;
+
+	int totalThreads = totalThreadsX * totalThreadsY * totalThreadsZ;
+
+	// calculate the ID of this particle in the 1 dimensional array (flatten out 3D dispatch coordinates)
+	int bufferID = dispatchID.x + dispatchID.y * totalThreadsX + dispatchID.z * totalThreadsX * totalThreadsY;
+
+	float3 pos = float3(dispatchID.x, dispatchID.y, dispatchID.z);
+
+	meshPointBuffer[(bufferID * 2)] = pos;
+	meshPointBuffer[(bufferID * 2) + 1] = pos + (vectorMapBuffer[bufferID]*500.0f);
+}

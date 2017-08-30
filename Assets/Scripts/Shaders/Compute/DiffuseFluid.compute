@@ -1,0 +1,40 @@
+﻿#pragma kernel DiffuseFluid
+
+#define threads_per_group_x 8
+#define threads_per_group_y 8
+#define threads_per_group_z 8
+
+float timeStep;
+
+RWStructuredBuffer<float3> flowBuffer;		// array of vectors
+RWStructuredBuffer<float3> flowBufferPrev;	// array of vectors from previous dispatch
+int numThreadGroupsX;	// total number of thread groups
+int numThreadGroupsY;	// total number of thread groups
+int numThreadGroupsZ;	// total number of thread groups
+
+float diffusionRate;
+
+[numthreads(threads_per_group_x, threads_per_group_y, threads_per_group_z)]
+void DiffuseFluid(uint3 dispatchID : SV_DispatchThreadID)
+{
+	// calculate total threads in the each dimension of whole box volume
+	int totalThreadsX = threads_per_group_x * numThreadGroupsX;
+	int totalThreadsY = threads_per_group_y * numThreadGroupsY;
+	int totalThreadsZ = threads_per_group_z * numThreadGroupsZ;
+
+	int totalThreads = totalThreadsX * totalThreadsY * totalThreadsZ;
+
+	int centerID = (dispatchID.x) + ((dispatchID.y) * totalThreadsX) + ((dispatchID.z) * totalThreadsX * totalThreadsY);
+	int frontID = (dispatchID.x) + ((dispatchID.y) * totalThreadsX) + ((dispatchID.z + 1) * totalThreadsX * totalThreadsY);
+	int backID = (dispatchID.x) + ((dispatchID.y) * totalThreadsX) + ((dispatchID.z - 1) * totalThreadsX * totalThreadsY);
+	int northID = (dispatchID.x) + ((dispatchID.y + 1) * totalThreadsX) + ((dispatchID.z) * totalThreadsX * totalThreadsY);
+	int southID = (dispatchID.x) + ((dispatchID.y - 1) * totalThreadsX) + ((dispatchID.z) * totalThreadsX * totalThreadsY);
+	int eastID = (dispatchID.x + 1) + ((dispatchID.y) * totalThreadsX) + ((dispatchID.z) * totalThreadsX * totalThreadsY);
+	int westID = (dispatchID.x - 1) + ((dispatchID.y) * totalThreadsX) + ((dispatchID.z) * totalThreadsX * totalThreadsY);
+
+	float a = diffusionRate * timeStep * totalThreadsX;
+
+	flowBuffer[centerID] = (flowBufferPrev[centerID] + a * (flowBuffer[northID] + flowBuffer[southID]
+		+ flowBuffer[eastID] + flowBuffer[westID]
+		+ flowBuffer[frontID] + flowBuffer[backID])) / (1 + 6 * a);
+}
