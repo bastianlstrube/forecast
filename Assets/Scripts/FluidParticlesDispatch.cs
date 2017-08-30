@@ -53,21 +53,8 @@ public class FluidParticlesDispatch : MonoBehaviour
         }
     }
 
-    // DISPATCH ORDER
-    // 1. Add velocity sources
-    // 2. Iteratively solve to compute velocity diffusion
-    // 3. Compute divergence
-    // 4. Jacobi iterations to compute pressure
-    // 5. Project velocity onto divergence free component
-    // 6. Advect velocity field along itself
-    // 7. Recompute divergence
-    // 8. More jacobi iterations
-    // 9. Project velocity
-    // 10. Advect particles along velocity field
-
-    
     [Header("Shaders")]
-    public ComputeShader fluidSourcesComputeShader;
+    //public ComputeShader fluidSourcesComputeShader;
     public ComputeShader fluidAffectorComputeShader;
     public ComputeShader diffuseFluidComputeShader;
     public ComputeShader advectFluidComputeShader;
@@ -115,7 +102,7 @@ public class FluidParticlesDispatch : MonoBehaviour
     public bool useVelocityAlpha = true;
 
     // compute shader buffers for retrieving data from and sending data to the compute shader
-    private ComputeBuffer fluidSourcesBuffer;
+    //private ComputeBuffer fluidSourcesBuffer;
     private ComputeBuffer flowMapBuffer;
     private ComputeBuffer flowMapBufferPrev;
     private ComputeBuffer particleBuffer;
@@ -129,7 +116,7 @@ public class FluidParticlesDispatch : MonoBehaviour
 
     // kernels
     private int fluidAffectorKernel;
-    private int fluidSourcesKernel;
+    //private int fluidSourcesKernel;
     private int diffuseFluidKernel;
     private int advectFluidKernel;
     private int divergenceKernel;
@@ -142,7 +129,7 @@ public class FluidParticlesDispatch : MonoBehaviour
     private Material vectorMaterial;  // vector material created from the vector shader
     private Material particleMaterial;  // particle material created from the particle shader
 
-    private OSCReceiver oscReceiver;
+    //private OSCReceiver oscReceiver;
 
     void Start()
     {
@@ -156,7 +143,7 @@ public class FluidParticlesDispatch : MonoBehaviour
         particleMaterial = new Material(particleSurfaceShader);
 
         // find the compute shader's "main" function and store it
-        fluidSourcesKernel = fluidSourcesComputeShader.FindKernel("AddFluidSources");
+        //fluidSourcesKernel = fluidSourcesComputeShader.FindKernel("AddFluidSources");
         fluidAffectorKernel = fluidAffectorComputeShader.FindKernel("AddFluidAffector");
         diffuseFluidKernel = diffuseFluidComputeShader.FindKernel("DiffuseFluid");
         advectFluidKernel = advectFluidComputeShader.FindKernel("AdvectFluid");
@@ -178,13 +165,13 @@ public class FluidParticlesDispatch : MonoBehaviour
 
         meshPointsBuffer = new ComputeBuffer(boxVolume * 2, sizeof(float) * 3);
 
-        fluidSourcesBuffer = new ComputeBuffer(OSCReceiver.maxNumSources, sizeof(float) * 6);
+        //fluidSourcesBuffer = new ComputeBuffer(OSCReceiver.maxNumSources, sizeof(float) * 6);
 
         InitialiseVectorMap();
         InitialiseParticles();
         InitialiseProjectionBuffers();
 
-        oscReceiver = GetComponent<OSCReceiver>();
+        //oscReceiver = GetComponent<OSCReceiver>();
 
         InitialiseFluidSourcesBuffer();
     }
@@ -230,7 +217,7 @@ public class FluidParticlesDispatch : MonoBehaviour
 
     void InitialiseFluidSourcesBuffer()
     {
-        fluidSourcesBuffer.SetData(oscReceiver.sourceMap);
+        //fluidSourcesBuffer.SetData(oscReceiver.sourceMap);
     }
 
     void AddFluidAffectorVelocity(Vector3 difference)
@@ -250,6 +237,7 @@ public class FluidParticlesDispatch : MonoBehaviour
 
     void AddFluidSources()
     {
+        /*
         if (oscReceiver.hasVelocity)
         {
             fluidSourcesBuffer.SetData(oscReceiver.sourceMap);
@@ -264,6 +252,7 @@ public class FluidParticlesDispatch : MonoBehaviour
 
             oscReceiver.ResetSourceMap();
         }
+        */
     }
 
     void DiffuseFluid(int iterations)
@@ -439,7 +428,7 @@ public class FluidParticlesDispatch : MonoBehaviour
         pressureBuffer.Release();
         particleBuffer.Release();
         meshPointsBuffer.Release();
-        fluidSourcesBuffer.Release();
+        //fluidSourcesBuffer.Release();
            
         DestroyImmediate(vectorMaterial);
         DestroyImmediate(particleMaterial);
