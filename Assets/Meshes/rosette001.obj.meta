@@ -1,34 +1,17 @@
 fileFormatVersion: 2
-guid: 26b387de37512334f966aff70fc567ca
-timeCreated: 1504121858
+guid: ee3ed5f7f2f66d646bd139841793ba51
+timeCreated: 1504197893
 licenseType: Free
 ModelImporter:
   serializedVersion: 19
   fileIDToRecycleName:
-    100000: //RootNode
-    100002: wallLong_polySurface1_LOD0
-    100004: wallLong_polySurface1_LOD1
-    100006: wallLong_polySurface1_LOD2
-    100008: wallLong_polySurface1_LOD3
-    400000: //RootNode
-    400002: wallLong_polySurface1_LOD0
-    400004: wallLong_polySurface1_LOD1
-    400006: wallLong_polySurface1_LOD2
-    400008: wallLong_polySurface1_LOD3
-    2300000: wallLong_polySurface1_LOD0
-    2300002: wallLong_polySurface1_LOD1
-    2300004: wallLong_polySurface1_LOD2
-    2300006: wallLong_polySurface1_LOD3
-    3300000: wallLong_polySurface1_LOD0
-    3300002: wallLong_polySurface1_LOD1
-    3300004: wallLong_polySurface1_LOD2
-    3300006: wallLong_polySurface1_LOD3
-    4300000: wallLong_polySurface1_LOD0
-    4300002: wallLong_polySurface1_LOD3
-    4300004: wallLong_polySurface1_LOD2
-    4300006: wallLong_polySurface1_LOD1
-    9500000: //RootNode
-    20500000: //RootNode
+    100000: default
+    100002: //RootNode
+    400000: default
+    400002: //RootNode
+    2300000: default
+    3300000: default
+    4300000: default
   materials:
     importMaterials: 0
     materialName: 0
@@ -54,11 +37,7 @@ ModelImporter:
     clipAnimations: []
     isReadable: 1
   meshes:
-    lODScreenPercentages:
-    - 0.25
-    - 0.125
-    - 0.0625
-    - 0.01
+    lODScreenPercentages: []
     globalScale: 1
     meshCompression: 0
     addColliders: 0
@@ -73,12 +52,12 @@ ModelImporter:
     secondaryUVAreaDistortion: 15.000001
     secondaryUVHardAngle: 88
     secondaryUVPackMargin: 4
-    useFileScale: 0
+    useFileScale: 1
   tangentSpace:
-    normalSmoothAngle: 180
-    normalImportMode: 1
+    normalSmoothAngle: 60
+    normalImportMode: 0
     tangentImportMode: 3
-  importAnimation: 0
+  importAnimation: 1
   copyAvatar: 0
   humanDescription:
     serializedVersion: 2
