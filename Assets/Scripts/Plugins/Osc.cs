@@ -102,6 +102,7 @@ using System;
         }
         catch (Exception e)
         {
+            e.ToString();
             //Debug.Log("ThreadAbortException"+e);
         }
         finally

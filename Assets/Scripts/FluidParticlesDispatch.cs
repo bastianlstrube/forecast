@@ -46,9 +46,10 @@ public class FluidParticlesDispatch : MonoBehaviour
         public float timeElapsed;       // How long this particle has lived
         public float lifeSpan;          //
         public Vector3 spawnPosition;   // Initial spawn position never changes
+        public float thisDrag;
 
         // Constructor
-        public Particle(Vector3 _position, Vector3 _velocity, Vector4 _color, float _timeElapsed, float _lifeSpan, Vector3 _spawnPosition)
+        public Particle(Vector3 _position, Vector3 _velocity, Vector4 _color, float _timeElapsed, float _lifeSpan, Vector3 _spawnPosition, float _thisDrag)
         {
             position = _position;
             velocity = _velocity;
@@ -56,6 +57,7 @@ public class FluidParticlesDispatch : MonoBehaviour
             timeElapsed = _timeElapsed;
             lifeSpan = _lifeSpan;
             spawnPosition = _spawnPosition;
+            thisDrag = _thisDrag;
         }
     }
 
@@ -172,7 +174,7 @@ public class FluidParticlesDispatch : MonoBehaviour
         divergenceBuffer = new ComputeBuffer(boxVolume, sizeof(float));
         pressureBuffer = new ComputeBuffer(boxVolume, sizeof(float));
         
-        particleBuffer = new ComputeBuffer(numParticles, (sizeof(float) * 3) * 3 + (sizeof(float) * 4) + (sizeof(float)) * 2);
+        particleBuffer = new ComputeBuffer(numParticles, (sizeof(float) * 3) * 3 + (sizeof(float) * 4) + (sizeof(float)) * 3);
 
         meshPointsBuffer = new ComputeBuffer(boxVolume * 2, sizeof(float) * 3);
 
@@ -207,9 +209,9 @@ public class FluidParticlesDispatch : MonoBehaviour
         Particle[] particleMap = new Particle[numParticles];
         for (int i = 0; i < numParticles; i++)
         {
-            Vector3 spawnPosition = new Vector3(Random.Range(0.0f, velocityBoxSize.x), Random.Range(0.0f, velocityBoxSize.y), Random.Range(0.0f, velocityBoxSize.z));
+            Vector3 spawnPosition = new Vector3(Random.Range(0, velocityBoxSize.x), Random.Range(0, velocityBoxSize.y), Random.Range(0, velocityBoxSize.z));
 
-            particleMap[i] = new Particle(spawnPosition, Vector3.zero, Vector4.zero, 0, Random.Range(particleLifeSpan.min, particleLifeSpan.max), spawnPosition);
+            particleMap[i] = new Particle(spawnPosition, Vector3.zero, Vector4.zero, 0, Random.Range(particleLifeSpan.min, particleLifeSpan.max), spawnPosition, Random.Range(0.0f, 1.0f));
         }
 
         particleBuffer.SetData(particleMap);
@@ -233,6 +235,8 @@ public class FluidParticlesDispatch : MonoBehaviour
 
     void AddFluidAffectorVelocity(Vector3 difference)
     {
+        fluidAffectorComputeShader.SetVector("worldPos", transform.position);
+        fluidAffectorComputeShader.SetVector("worldScale", transform.localScale);
         fluidAffectorComputeShader.SetInt("numThreadGroupsX", velocityBoxSize.x / 8);
         fluidAffectorComputeShader.SetInt("numThreadGroupsY", velocityBoxSize.y / 8);
         fluidAffectorComputeShader.SetInt("numThreadGroupsZ", velocityBoxSize.z / 8);
@@ -445,4 +449,13 @@ public class FluidParticlesDispatch : MonoBehaviour
         DestroyImmediate(vectorMaterial);
         DestroyImmediate(particleMaterial);
     }
+
+
+    void OnDrawGizmosSelected()
+    {
+        Gizmos.color = new Color(1, 0, 0, 0.5F);
+        Vector3 cube = new Vector3(velocityBoxSize.x * transform.localScale.x, velocityBoxSize.y * transform.localScale.y, velocityBoxSize.z * transform.localScale.z);
+        Gizmos.DrawCube(transform.position + cube/2, cube);
+    }
+
 }

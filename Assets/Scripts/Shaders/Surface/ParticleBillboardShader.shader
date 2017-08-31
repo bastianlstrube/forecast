@@ -49,6 +49,7 @@
 				float timeElapsed;
 				float lifeSpan;
 				float3 spawnPosition;
+				float drag;
 			};
 
 			// buffer containing array of points we want to draw
@@ -59,14 +60,19 @@
 				float4 pos : SV_POSITION;
 				float3 vel : TEXCOORD2;
 				float2 uv : TEXCOORD0;
+				float drag : BLENDWEIGHT;
+				float sizeOverLifetime : PSIZE;
 				UNITY_FOG_COORDS(1)
 			};
 
 			input vert(uint id : SV_VertexID)
 			{
 				input i;
-				i.pos = float4((particles[id].pos + _worldPos)* _localScale, 1.0f);
+				i.pos = float4(_worldPos + (particles[id].pos)* _localScale, 1.0f);
+				i.uv = float2(0, 0);
 				i.vel = particles[id].vel;
+				i.drag = particles[id].drag;
+				i.sizeOverLifetime = 2.0f * (0.5f - abs((particles[id].timeElapsed / particles[id].lifeSpan) - 0.5f));
 				return i;
 			}
 
@@ -82,7 +88,7 @@
 			[maxvertexcount(4)]
 			void geom(point input p[1], inout TriangleStream<input> triStream)
 			{
-				float2 halfS = _Size;
+				float2 halfS = _Size * p[0].sizeOverLifetime;
 
 				float4 v[4];
 
@@ -91,7 +97,7 @@
 
 				look = normalize(look);
 				float3 right = normalize(cross(look, up));
-				up = normalize(cross(right, look)) * length(p[0].vel) * _SizeByVelocity;
+				up = normalize(cross(right, look)) * (length(p[0].vel) * (_SizeByVelocity)+(1.0f)); // - p[0].drag));
 
 				v[0] = RotPoint(p[0].pos, float3(-halfS.x, -halfS.y, 0), right, up);
 				v[1] = RotPoint(p[0].pos, float3(-halfS.x, halfS.y, 0), right, up);
@@ -101,6 +107,8 @@
 				input pIn;
 
 				pIn.vel = float3(0, 0, 0);
+				pIn.drag = 0;
+				pIn.sizeOverLifetime = 0;
 
 				pIn.pos = mul(UNITY_MATRIX_VP, v[0]);
 				pIn.uv = float2(0.0f, 0.0f);

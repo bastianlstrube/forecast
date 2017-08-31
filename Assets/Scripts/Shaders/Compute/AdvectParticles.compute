@@ -17,6 +17,7 @@ struct particle
 	float timeElapsed;
 	float lifeSpan;
 	float3 spawnPosition;
+	float drag;
 };
 
 StructuredBuffer<float3> flowBuffer;			// array of vectors
@@ -76,6 +77,7 @@ void AdvectParticles(uint3 dispatchID : SV_DispatchThreadID)
 
 	particleBuffer[particleID].velocity += value;
 	particleBuffer[particleID].velocity *= drag;
+	particleBuffer[particleID].velocity *= particleBuffer[particleID].drag;
 
 	particleBuffer[particleID].timeElapsed += timeStep;
 

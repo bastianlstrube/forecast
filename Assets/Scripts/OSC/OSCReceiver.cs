@@ -37,7 +37,7 @@ public class OSCReceiver : MonoBehaviour
         handler = new Osc();
         handler.init(udp);
         handler.SetAllMessageHandler(AllMessageHandler);
-        Debug.Log("OSC Connection initialized");
+        //Debug.Log("OSC Connection initialized");
 
         hasVelocity = false;
         sourceMap = new FluidSource[maxNumSources];
