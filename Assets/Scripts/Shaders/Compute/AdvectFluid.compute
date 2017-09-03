@@ -4,7 +4,7 @@
 #define threads_per_group_y 8
 #define threads_per_group_z 8
 
-#define findID(mapX, mapY, mapZ) ((mapX) + ((mapY) * totalThreadsY) + ((mapZ) * totalThreadsX * totalThreadsY))
+#define findID(mapX, mapY, mapZ) (mapX + totalThreadsX * (mapY + totalThreadsY * mapZ))
 
 float timeStep;
 
@@ -27,7 +27,7 @@ void AdvectFluid(uint3 dispatchID : SV_DispatchThreadID)
 	int totalThreads = totalThreadsX * totalThreadsY * totalThreadsZ;
 
 	int cellID = findID(dispatchID.x, dispatchID.y, dispatchID.z);
-	float3 backtracePosition = float3(dispatchID.x, dispatchID.y, dispatchID.z) - flowBuffer[cellID];
+	float3 backtracePosition = float3(dispatchID.x, dispatchID.y, dispatchID.z) - flowBuffer[cellID] * timeStep;
 
 	int bottomX = floor(backtracePosition.x);
 	int bottomY = floor(backtracePosition.y);
@@ -36,9 +36,9 @@ void AdvectFluid(uint3 dispatchID : SV_DispatchThreadID)
 	int topY = ceil(backtracePosition.y);
 	int topZ = ceil(backtracePosition.z);
 
-	float x = backtracePosition.x - (float)bottomX;
-	float y = backtracePosition.y - (float)bottomY;
-	float z = backtracePosition.z - (float)bottomZ;
+	float x = backtracePosition.x - bottomX;
+	float y = backtracePosition.y - bottomY;
+	float z = backtracePosition.z - bottomZ;
 	
 	//trilinear interpolation
 	float3 value = 

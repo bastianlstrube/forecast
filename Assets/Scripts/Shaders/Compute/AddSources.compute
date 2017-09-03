@@ -4,7 +4,7 @@
 #define threads_per_group_y 8
 #define threads_per_group_z 8
 
-#define findID(mapX, mapY, mapZ) ((mapX) + ((mapY) * totalThreadsY) + ((mapZ) * totalThreadsX * totalThreadsY))
+#define findID(mapX, mapY, mapZ) (mapX + totalThreadsX * (mapY + totalThreadsY * mapZ))
 
 struct source
 {
@@ -34,7 +34,7 @@ void AddFluidSources(uint3 dispatchID : SV_DispatchThreadID)
 
 	int cellID = findID(dispatchID.x, dispatchID.y, dispatchID.z);
 
-	int fluidSourceX = floor(dispatchID.x / 64.0f * 30);
+	int fluidSourceX = floor(dispatchID.x / 128.0f * 30);
 	int fluidSourceY = floor(dispatchID.y / 64.0f * 20);
 	int fluidID = fluidSourceX + fluidSourceY * 20;
 	
@@ -49,6 +49,6 @@ void AddFluidSources(uint3 dispatchID : SV_DispatchThreadID)
 
 	float zProximity = saturate(1.0 - (abs((dispatchID.z / 64.0f) - (fluidSourcesBuffer[fluidID].position.z / 256.0f))) - 0.7f);
 
-	flowBuffer[cellID] += (fluidSourcesBuffer[fluidID].velocity/5.0f) * zProximity;
+	flowBuffer[cellID] += (fluidSourcesBuffer[fluidID].velocity/5.0);
 
 }

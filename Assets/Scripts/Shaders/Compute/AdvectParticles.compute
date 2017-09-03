@@ -4,7 +4,7 @@
 #define threads_per_group_y 8
 #define threads_per_group_z 8
 
-#define findID(mapX, mapY, mapZ, maxX, maxY) ((mapX) + ((mapY) * maxY) + ((mapZ) * maxX * maxY))
+#define findID(mapX, mapY, mapZ) (mapX + totalThreadsX * (mapY + totalThreadsY * mapZ))
 
 float timeStep;
 
@@ -26,6 +26,8 @@ RWStructuredBuffer<particle> particleBuffer;	// array of particles
 int numThreadGroupsX;	// total number of thread groups
 int numThreadGroupsY;	// total number of thread groups
 int numThreadGroupsZ;	// total number of thread groups
+
+float3 velocityBoxSize;
 
 SamplerState _LinearClamp;
 SamplerState _LinearRepeat;
@@ -66,14 +68,14 @@ void AdvectParticles(uint3 dispatchID : SV_DispatchThreadID)
 	float y = particleBuffer[particleID].position.y - (float)bottomY;
 	float z = particleBuffer[particleID].position.z - (float)bottomZ;
 
-	float3 value = flowBuffer[findID(bottomX, bottomY, bottomZ, totalThreadsX, totalThreadsY)] * (1 - x) * (1 - y) * (1 - z) +
-		flowBuffer[findID(topX, bottomY, bottomZ, totalThreadsX, totalThreadsY)] * x * (1 - y) * (1 - z) +
-		flowBuffer[findID(bottomX, topY, bottomZ, totalThreadsX, totalThreadsY)] * (1 - x) * y * (1 - z) +
-		flowBuffer[findID(bottomX, bottomY, topZ, totalThreadsX, totalThreadsY)] * (1 - x) * (1 - y) * z +
-		flowBuffer[findID(topX, bottomY, topZ, totalThreadsX, totalThreadsY)] * x * (1 - y) * z +
-		flowBuffer[findID(bottomX, topY, topZ, totalThreadsX, totalThreadsY)] * (1 - x) * y * z +
-		flowBuffer[findID(topX, topY, bottomZ, totalThreadsX, totalThreadsY)] * x * y * (1 - z) +
-		flowBuffer[findID(topX, topY, topZ, totalThreadsX, totalThreadsY)] * x * y * z;
+	float3 value = flowBuffer[findID(bottomX, bottomY, bottomZ)] * (1 - x) * (1 - y) * (1 - z) +
+		flowBuffer[findID(topX, bottomY, bottomZ)] * x * (1 - y) * (1 - z) +
+		flowBuffer[findID(bottomX, topY, bottomZ)] * (1 - x) * y * (1 - z) +
+		flowBuffer[findID(bottomX, bottomY, topZ)] * (1 - x) * (1 - y) * z +
+		flowBuffer[findID(topX, bottomY, topZ)] * x * (1 - y) * z +
+		flowBuffer[findID(bottomX, topY, topZ)] * (1 - x) * y * z +
+		flowBuffer[findID(topX, topY, bottomZ)] * x * y * (1 - z) +
+		flowBuffer[findID(topX, topY, topZ)] * x * y * z;
 
 	particleBuffer[particleID].velocity += value;
 	particleBuffer[particleID].velocity *= drag;
@@ -84,12 +86,14 @@ void AdvectParticles(uint3 dispatchID : SV_DispatchThreadID)
 	float percentOfLifespan = saturate(particleBuffer[particleID].timeElapsed / particleBuffer[particleID].lifeSpan);
 
 	float3 velocity = particleBuffer[particleID].velocity;
-	float squareVelocity = abs(velocity.x * velocity.x + velocity.y * velocity.y + velocity.z + velocity.z);
+	float squareVelocity = abs(velocity.x * velocity.x + velocity.y * velocity.y + velocity.z * velocity.z);
 	float maxSquareVelocity = 2;
 
 	float alphaScale = saturate(velocityAlpha + squareVelocity / maxSquareVelocity);
 
-	particleBuffer[particleID].color = float4(1.0, 1.0, 1.0, (1-percentOfLifespan)*alphaScale);
+	float3 scaledPosition = particleBuffer[particleID].position / velocityBoxSize;
+
+	particleBuffer[particleID].color = float4(1.0f-scaledPosition.x, scaledPosition.y, scaledPosition.z, (1-percentOfLifespan)*alphaScale);
 
 	particleBuffer[particleID].position += particleBuffer[particleID].velocity;
 }

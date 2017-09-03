@@ -209,9 +209,9 @@ public class FluidParticlesDispatch : MonoBehaviour
         Particle[] particleMap = new Particle[numParticles];
         for (int i = 0; i < numParticles; i++)
         {
-            Vector3 spawnPosition = new Vector3(Random.Range(0, velocityBoxSize.x), Random.Range(0, velocityBoxSize.y), Random.Range(0, velocityBoxSize.z));
+            Vector3 spawnPosition = new Vector3(Random.Range(0.0f, velocityBoxSize.x), Random.Range(0.0f, velocityBoxSize.y), Random.Range(0.0f, velocityBoxSize.z));
 
-            particleMap[i] = new Particle(spawnPosition, Vector3.zero, Vector4.zero, 0, Random.Range(particleLifeSpan.min, particleLifeSpan.max), spawnPosition, Random.Range(0.0f, 1.0f));
+            particleMap[i] = new Particle(spawnPosition, Vector3.zero, Vector4.zero, 0, Random.Range(particleLifeSpan.min, particleLifeSpan.max), spawnPosition, 1.0f);
         }
 
         particleBuffer.SetData(particleMap);
@@ -304,7 +304,7 @@ public class FluidParticlesDispatch : MonoBehaviour
         advectFluidComputeShader.SetInt("numThreadGroupsY", velocityBoxSize.y / 8);
         advectFluidComputeShader.SetInt("numThreadGroupsZ", velocityBoxSize.z / 8);
         advectFluidComputeShader.SetFloat("timeStep", Time.deltaTime);
-        diffuseFluidComputeShader.Dispatch(advectFluidKernel, velocityBoxSize.x / 8, velocityBoxSize.y / 8, velocityBoxSize.z / 8);
+        advectFluidComputeShader.Dispatch(advectFluidKernel, velocityBoxSize.x / 8, velocityBoxSize.y / 8, velocityBoxSize.z / 8);
     }
 
     void AdvectParticles()
@@ -321,8 +321,9 @@ public class FluidParticlesDispatch : MonoBehaviour
             advectParticlesComputeShader.SetInt("velocityAlpha", 1);
         advectParticlesComputeShader.SetFloat("timeStep", Time.deltaTime);
 
+        advectParticlesComputeShader.SetVector("velocityBoxSize", new Vector3(velocityBoxSize.x * transform.localScale.x, velocityBoxSize.y * transform.localScale.y, velocityBoxSize.z * transform.localScale.z));
+        
         advectParticlesComputeShader.Dispatch(advectParticleKernel, numParticles / 512, 1, 1);
-
 
     }
 
