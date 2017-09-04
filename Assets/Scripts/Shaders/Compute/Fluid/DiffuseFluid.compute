@@ -1,0 +1,44 @@
+﻿#pragma kernel DiffuseFluid
+
+#define threads_per_group_x 8
+#define threads_per_group_y 8
+#define threads_per_group_z 8
+
+//#define findID(mapX, mapY, mapZ) ((mapX) + ((mapY) * totalThreadsY) + ((mapZ) * totalThreadsX * totalThreadsY))
+#define findID(mapX, mapY, mapZ) (mapX + totalThreadsX * (mapY + totalThreadsY * mapZ))
+
+float timeStep;
+
+RWStructuredBuffer<float3> flowBuffer;		// array of vectors
+RWStructuredBuffer<float3> flowBufferPrev;	// array of vectors from previous dispatch
+int numThreadGroupsX;	// total number of thread groups
+int numThreadGroupsY;	// total number of thread groups
+int numThreadGroupsZ;	// total number of thread groups
+
+float diffusionRate;
+
+[numthreads(threads_per_group_x, threads_per_group_y, threads_per_group_z)]
+void DiffuseFluid(uint3 dispatchID : SV_DispatchThreadID)
+{
+	// calculate total threads in the each dimension of whole box volume
+	int totalThreadsX = threads_per_group_x * numThreadGroupsX;
+	int totalThreadsY = threads_per_group_y * numThreadGroupsY;
+	int totalThreadsZ = threads_per_group_z * numThreadGroupsZ;
+
+	int totalThreads = totalThreadsX * totalThreadsY * totalThreadsZ;
+	
+	int centerID = findID(dispatchID.x, dispatchID.y, dispatchID.z);
+	int frontID = findID(dispatchID.x, dispatchID.y, dispatchID.z + 1);
+	int backID = findID(dispatchID.x , dispatchID.y, dispatchID.z - 1);
+	int northID = findID(dispatchID.x, dispatchID.y + 1, dispatchID.z);
+	int southID = findID(dispatchID.x, dispatchID.y - 1, dispatchID.z);
+	int eastID = findID(dispatchID.x + 1, dispatchID.y, dispatchID.z);
+	int westID = findID(dispatchID.x - 1, dispatchID.y, dispatchID.z);
+
+	float a = diffusionRate * timeStep * totalThreadsZ;
+
+	flowBuffer[centerID] = (flowBufferPrev[centerID] + a * (
+		flowBuffer[northID] + flowBuffer[southID]
+		+ flowBuffer[eastID] + flowBuffer[westID]
+		+ flowBuffer[frontID] + flowBuffer[backID])) / (2 + 6 * a);
+}

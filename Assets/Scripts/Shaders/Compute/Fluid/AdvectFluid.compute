@@ -1,0 +1,55 @@
+﻿#pragma kernel AdvectFluid
+
+#define threads_per_group_x 8
+#define threads_per_group_y 8
+#define threads_per_group_z 8
+
+#define findID(mapX, mapY, mapZ) (mapX + totalThreadsX * (mapY + totalThreadsY * mapZ))
+
+float timeStep;
+
+// struct representing the data of a single particle
+RWStructuredBuffer<float3> flowBuffer;			// array of vectors
+RWStructuredBuffer<float3> flowBufferPrev;		// array of vectors
+
+int numThreadGroupsX;	// total number of thread groups
+int numThreadGroupsY;	// total number of thread groups
+int numThreadGroupsZ;	// total number of thread groups
+
+[numthreads(threads_per_group_x, threads_per_group_y, threads_per_group_z)]
+void AdvectFluid(uint3 dispatchID : SV_DispatchThreadID)
+{
+	// calculate total threads in the each dimension of whole box volume
+	int totalThreadsX = threads_per_group_x * numThreadGroupsX;
+	int totalThreadsY = threads_per_group_y * numThreadGroupsY;
+	int totalThreadsZ = threads_per_group_z * numThreadGroupsZ;
+
+	int totalThreads = totalThreadsX * totalThreadsY * totalThreadsZ;
+
+	int cellID = findID(dispatchID.x, dispatchID.y, dispatchID.z);
+	float3 backtracePosition = float3(dispatchID.x, dispatchID.y, dispatchID.z) - flowBuffer[cellID] * timeStep;
+
+	int bottomX = floor(backtracePosition.x);
+	int bottomY = floor(backtracePosition.y);
+	int bottomZ = floor(backtracePosition.z);
+	int topX = ceil(backtracePosition.x);
+	int topY = ceil(backtracePosition.y);
+	int topZ = ceil(backtracePosition.z);
+
+	float x = backtracePosition.x - bottomX;
+	float y = backtracePosition.y - bottomY;
+	float z = backtracePosition.z - bottomZ;
+	
+	//trilinear interpolation
+	float3 value = 
+		flowBufferPrev[findID(bottomX, bottomY, bottomZ)] * (1 - x) * (1 - y) * (1 - z) +
+		flowBufferPrev[findID(topX, bottomY, bottomZ)] * x * (1 - y) * (1 - z) +
+		flowBufferPrev[findID(bottomX, topY, bottomZ)] * (1 - x) * y * (1 - z) +
+		flowBufferPrev[findID(bottomX, bottomY, topZ)] * (1 - x) * (1 - y) * z +
+		flowBufferPrev[findID(topX, bottomY, topZ)] * x * (1 - y) * z +
+		flowBufferPrev[findID(bottomX, topY, topZ)] * (1 - x) * y * z +
+		flowBufferPrev[findID(topX, topY, bottomZ)] * x * y * (1 - z) +
+		flowBufferPrev[findID(topX, topY, topZ)] * x * y * z;
+
+	flowBuffer[cellID] = value;
+}
