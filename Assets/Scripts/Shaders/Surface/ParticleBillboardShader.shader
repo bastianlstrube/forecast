@@ -62,6 +62,7 @@
 				float2 uv : TEXCOORD0;
 				float drag : BLENDWEIGHT;
 				float sizeOverLifetime : PSIZE;
+				float4 col : COLOR;
 				UNITY_FOG_COORDS(1)
 			};
 
@@ -73,6 +74,7 @@
 				i.vel = particles[id].vel;
 				i.drag = particles[id].drag;
 				i.sizeOverLifetime = 2.0f * (0.5f - abs((particles[id].timeElapsed / particles[id].lifeSpan) - 0.5f));
+				i.col = particles[id].col;
 				return i;
 			}
 
@@ -105,6 +107,7 @@
 				v[3] = RotPoint(p[0].pos, float3(halfS.x, halfS.y, 0), right, up);
 
 				input pIn;
+				pIn.col = p[0].col;
 
 				pIn.vel = float3(0, 0, 0);
 				pIn.drag = 0;
@@ -133,7 +136,7 @@
 
 			float4 frag(input i) : COLOR
 			{
-				fixed4 col = tex2D(_Sprite, i.uv) * (_Tint);	// multiplactive colour blending
+				fixed4 col = tex2D(_Sprite, i.uv) * (_Tint) * i.col;	// multiplactive colour blending
 				UNITY_APPLY_FOG(i.fogCoord, col);
 
 				return col;

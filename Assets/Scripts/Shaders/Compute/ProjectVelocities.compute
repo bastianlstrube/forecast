@@ -4,7 +4,7 @@
 #define threads_per_group_y 8
 #define threads_per_group_z 8
 
-#define findID(mapX, mapY, mapZ) ((mapX) + ((mapY) * totalThreadsY) + ((mapZ) * totalThreadsX * totalThreadsY))
+#define findID(mapX, mapY, mapZ) (mapX + totalThreadsX * (mapY + totalThreadsY * mapZ))
 
 float timeStep;
 

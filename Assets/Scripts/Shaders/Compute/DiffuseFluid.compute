@@ -4,6 +4,9 @@
 #define threads_per_group_y 8
 #define threads_per_group_z 8
 
+//#define findID(mapX, mapY, mapZ) ((mapX) + ((mapY) * totalThreadsY) + ((mapZ) * totalThreadsX * totalThreadsY))
+#define findID(mapX, mapY, mapZ) (mapX + totalThreadsX * (mapY + totalThreadsY * mapZ))
+
 float timeStep;
 
 RWStructuredBuffer<float3> flowBuffer;		// array of vectors
@@ -23,18 +26,19 @@ void DiffuseFluid(uint3 dispatchID : SV_DispatchThreadID)
 	int totalThreadsZ = threads_per_group_z * numThreadGroupsZ;
 
 	int totalThreads = totalThreadsX * totalThreadsY * totalThreadsZ;
+	
+	int centerID = findID(dispatchID.x, dispatchID.y, dispatchID.z);
+	int frontID = findID(dispatchID.x, dispatchID.y, dispatchID.z + 1);
+	int backID = findID(dispatchID.x , dispatchID.y, dispatchID.z - 1);
+	int northID = findID(dispatchID.x, dispatchID.y + 1, dispatchID.z);
+	int southID = findID(dispatchID.x, dispatchID.y - 1, dispatchID.z);
+	int eastID = findID(dispatchID.x + 1, dispatchID.y, dispatchID.z);
+	int westID = findID(dispatchID.x - 1, dispatchID.y, dispatchID.z);
 
-	int centerID = (dispatchID.x) + ((dispatchID.y) * totalThreadsX) + ((dispatchID.z) * totalThreadsX * totalThreadsY);
-	int frontID = (dispatchID.x) + ((dispatchID.y) * totalThreadsX) + ((dispatchID.z + 1) * totalThreadsX * totalThreadsY);
-	int backID = (dispatchID.x) + ((dispatchID.y) * totalThreadsX) + ((dispatchID.z - 1) * totalThreadsX * totalThreadsY);
-	int northID = (dispatchID.x) + ((dispatchID.y + 1) * totalThreadsX) + ((dispatchID.z) * totalThreadsX * totalThreadsY);
-	int southID = (dispatchID.x) + ((dispatchID.y - 1) * totalThreadsX) + ((dispatchID.z) * totalThreadsX * totalThreadsY);
-	int eastID = (dispatchID.x + 1) + ((dispatchID.y) * totalThreadsX) + ((dispatchID.z) * totalThreadsX * totalThreadsY);
-	int westID = (dispatchID.x - 1) + ((dispatchID.y) * totalThreadsX) + ((dispatchID.z) * totalThreadsX * totalThreadsY);
+	float a = diffusionRate * timeStep * totalThreadsZ;
 
-	float a = diffusionRate * timeStep * totalThreadsX;
-
-	flowBuffer[centerID] = (flowBufferPrev[centerID] + a * (flowBuffer[northID] + flowBuffer[southID]
+	flowBuffer[centerID] = (flowBufferPrev[centerID] + a * (
+		flowBuffer[northID] + flowBuffer[southID]
 		+ flowBuffer[eastID] + flowBuffer[westID]
-		+ flowBuffer[frontID] + flowBuffer[backID])) / (1 + 6 * a);
+		+ flowBuffer[frontID] + flowBuffer[backID])) / (2 + 6 * a);
 }

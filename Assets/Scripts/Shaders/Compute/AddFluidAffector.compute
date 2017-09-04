@@ -4,7 +4,7 @@
 #define threads_per_group_y 8
 #define threads_per_group_z 8
 
-#define findID(mapX, mapY, mapZ) ((mapX) + ((mapY) * totalThreadsY) + ((mapZ) * totalThreadsX * totalThreadsY))
+#define findID(mapX, mapY, mapZ) (mapX + totalThreadsX * (mapY + totalThreadsY * mapZ))
 
 float timeStep;
 
@@ -36,8 +36,8 @@ void AddFluidAffector(uint3 dispatchID : SV_DispatchThreadID)
 	int cellID = findID(dispatchID.x, dispatchID.y, dispatchID.z);
 
 	float3 differenceVector = worldPos + float3(dispatchID.x, dispatchID.y, dispatchID.z) * worldScale - sourcePosition;
-	float distance = sqrt(differenceVector.x*differenceVector.x + differenceVector.y*differenceVector.y + differenceVector.z*differenceVector.z);
+	float distance = differenceVector.x*differenceVector.x + differenceVector.y*differenceVector.y + differenceVector.z*differenceVector.z;
 	distance = clamp(distance, 0, size);
 
-	flowBuffer[cellID] += sourceVelocity*(distance-size) + constantForces;
+	flowBuffer[cellID] += sourceVelocity * (distance-size) + constantForces;
 }
