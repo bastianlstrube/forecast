@@ -36,7 +36,7 @@ void AddFluidSources(uint3 dispatchID : SV_DispatchThreadID)
 
 	int fluidSourceX = floor(dispatchID.x / 128.0f * 30);
 	int fluidSourceY = floor(dispatchID.y / 64.0f * 20);
-	int fluidID = fluidSourceX + fluidSourceY * 20;
+	int fluidID = fluidSourceX * 20 + (fluidSourceY);
 	
 	/*
 	float3 normalisedDispatch = float3(dispatchID.x/64.0f, dispatchID.y/64.0f, dispatchID.z/ 64.0f);
@@ -49,6 +49,6 @@ void AddFluidSources(uint3 dispatchID : SV_DispatchThreadID)
 
 	float zProximity = saturate(1.0 - (abs((dispatchID.z / 64.0f) - (fluidSourcesBuffer[fluidID].position.z / 256.0f))) - 0.7f);
 
-	flowBuffer[cellID] += (fluidSourcesBuffer[fluidID].velocity/5.0);
+	flowBuffer[cellID] += (fluidSourcesBuffer[fluidID].velocity/10.0f);
 
 }
