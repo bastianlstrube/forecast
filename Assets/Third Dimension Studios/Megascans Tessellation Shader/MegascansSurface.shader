@@ -788,5 +788,5 @@ Shader "Third Dimension Studios/MegascansSurface" {
         }
     }
     FallBack "Standard"
-    CustomEditor "ShaderForgeMaterialInspector"
+    //CustomEditor "ShaderForgeMaterialInspector"
 }

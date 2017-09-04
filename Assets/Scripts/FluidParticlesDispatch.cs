@@ -305,6 +305,12 @@ public class FluidParticlesDispatch : MonoBehaviour
         advectFluidComputeShader.SetInt("numThreadGroupsZ", velocityBoxSize.z / 8);
         advectFluidComputeShader.SetFloat("timeStep", Time.deltaTime);
         advectFluidComputeShader.Dispatch(advectFluidKernel, velocityBoxSize.x / 8, velocityBoxSize.y / 8, velocityBoxSize.z / 8);
+
+        /*
+        advectFluidComputeShader.SetBuffer(advectFluidKernel, "flowBufferPrev", flowMapBufferPrev);
+        advectFluidComputeShader.SetBuffer(advectFluidKernel, "flowBuffer", flowMapBuffer);
+        advectFluidComputeShader.Dispatch(advectFluidKernel, velocityBoxSize.x / 8, velocityBoxSize.y / 8, velocityBoxSize.z / 8);
+        */
     }
 
     void AdvectParticles()
