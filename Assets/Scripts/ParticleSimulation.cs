@@ -140,11 +140,30 @@ public class ParticleSimulation : MonoBehaviour {
         {
             if (useRandomStartVelocities)
             {
-                int zPosition = i % velocityBoxSize.z;
+                int xPosition = i % velocityBoxSize.z;
                 int yPosition = (i / velocityBoxSize.z) % velocityBoxSize.y;
-                int xPosition = i / (velocityBoxSize.y * velocityBoxSize.z);
+                int zPosition = i / (velocityBoxSize.y * velocityBoxSize.z);
 
-                flowMap[i] = new Vector3(Random.Range(0, (zPosition- velocityBoxSize.x/2.0f) * 0.005f), Random.Range(-0.5f, 0.5f), Random.Range(-0.5f, 0.5f));
+                float xVelocity, yVelocity, zVelocity = 0;
+
+                xVelocity = (xPosition % 5) - (xPosition % 10)/2f;
+                yVelocity = (yPosition % 5) - (yPosition % 10)/2f;
+                zVelocity = (zPosition % 5) - (zPosition % 10)/2f;
+
+                flowMap[i] = new Vector3(xVelocity * 0.05f, xVelocity * 0.05f, xVelocity * 0.05f);
+
+                /*
+                if (xPosition % 5 == 0)
+                {
+
+                    flowMap[i] = new Vector3((zPosition - velocityBoxSize.x / 2.0f) * 0.005f, (yPosition - velocityBoxSize.y / 2.0f) * 0.005f, (xPosition - velocityBoxSize.z / 2.0f) * 0.005f);
+                }
+                else
+                {
+
+                    flowMap[i] = new Vector3(Random.Range(0, (zPosition - velocityBoxSize.x / 2.0f) * 0.005f), Random.Range(-0.5f, 0.5f), Random.Range(-0.5f, 0.5f));
+                }
+                */
             }
             else
             {
