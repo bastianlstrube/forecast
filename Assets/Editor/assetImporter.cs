@@ -44,7 +44,7 @@ internal sealed class CustomAssetImporter : AssetPostprocessor {
         if( fileName.Contains("normal") ) {
             importer.textureType = TextureImporterType.NormalMap;
         }
-        if( fileName.Contains("cavity") || fileName.Contains("roughness") || fileName.Contains("displacement") ) {
+        if( fileName.Contains("cavity") || fileName.Contains("roughness") || fileName.Contains("displacement") || fileName.Contains("albedo") ) {
             importer.sRGBTexture = false;
         }
 
