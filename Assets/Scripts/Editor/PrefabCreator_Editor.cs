@@ -26,35 +26,46 @@ public class PrefabCreator_Editor : EditorWindow
     {
         foreach (GameObject obj in Selection.gameObjects)
         {
-            GameObject prefab = new GameObject(obj.name);
+            string newname = obj.name.Remove(obj.name.Length - 7);
+            string objAssName = obj.name.Remove(obj.name.Length - 4);
+            string objAssPath = "Assets/Scans/Quixel/" + objAssName + "ms/";
+
+            GameObject prefab = new GameObject(newname);
             prefab.transform.position = Vector3.zero;
             obj.transform.parent = prefab.transform;
             obj.transform.position = Vector3.zero;
 
-           Material material = new Material(Shader.Find("Standard"));
-           Texture texture = AssetDatabase.LoadAssetAtPath<Texture>("Assets/Scans/textures/" + obj.name + ".jpg");
-           if(!texture)
-           {
-                texture = AssetDatabase.LoadAssetAtPath<Texture>("Assets/Scans/textures/" + obj.name + ".png");
-           }
+           Material material = new Material(Shader.Find("Third Dimension Studios/MegascansSurface"));
+           //Texture texture = AssetDatabase.LoadAssetAtPath<Texture>("Assets/Scans/textures/" + obj.name + ".jpg");
+           //if(!texture)
+           //{
+           //     texture = AssetDatabase.LoadAssetAtPath<Texture>("Assets/Scans/textures/" + obj.name + ".png");
+           //}
 
 
+           if(AssetDatabase.LoadAssetAtPath<Texture>(objAssPath + objAssName + "albedo.jpg"))
+            material.SetTexture("_MainTex", AssetDatabase.LoadAssetAtPath<Texture>(objAssPath + objAssName + "albedo.jpg"));
+           if(AssetDatabase.LoadAssetAtPath<Texture>(objAssPath + objAssName + "normal.jpg"))
+            material.SetTexture("_BumpMap", AssetDatabase.LoadAssetAtPath<Texture>(objAssPath + objAssName + "normal.jpg"));
+           if(AssetDatabase.LoadAssetAtPath<Texture>(objAssPath + objAssName + "roughness.jpg"))
+            material.SetTexture("_Roughness", AssetDatabase.LoadAssetAtPath<Texture>(objAssPath + objAssName + "roughness.jpg"));
+           if(AssetDatabase.LoadAssetAtPath<Texture>(objAssPath + objAssName + "cavity.jpg"))
+            material.SetTexture("_Cavity", AssetDatabase.LoadAssetAtPath<Texture>(objAssPath + objAssName + "cavity.jpg"));
+           if(AssetDatabase.LoadAssetAtPath<Texture>(objAssPath + objAssName + "displacement.jpg"))
+            material.SetTexture("_DisplacementMap", AssetDatabase.LoadAssetAtPath<Texture>(objAssPath + objAssName + "displacement.jpg"));
 
-            material.SetTexture("_MainTex", texture);
-            material.SetTexture("_BumpMap", AssetDatabase.LoadAssetAtPath<Texture>("Assets/Scans/normals/" + obj.name + "_normal.png"));
-
-           AssetDatabase.CreateAsset(material, "Assets/Materials/" + obj.name + ".mat");
+           AssetDatabase.CreateAsset(material, "Assets/Scans/QuixelMaterials/" + newname + ".mat");
 
            Renderer[] renderers = prefab.GetComponentsInChildren<Renderer>();
 
            for (int i = 0; i < renderers.Length; i++)
             {
 
-               renderers[i].sharedMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/" + obj.name + ".mat");
+               renderers[i].sharedMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Scans/QuixelMaterials/" + newname + ".mat");
 
            }
 
-           PrefabUtility.CreatePrefab("Assets/Prefabs/"+ prefab.name+".prefab", prefab);
+           PrefabUtility.CreatePrefab("Assets/Prefabs/"+ prefab.name + ".prefab", prefab);
         }
     }
 }
