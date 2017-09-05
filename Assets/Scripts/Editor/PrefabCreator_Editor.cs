@@ -16,13 +16,13 @@ public class PrefabCreator_Editor : EditorWindow
         GUILayout.Label("Create prefabs from gameobjects", EditorStyles.boldLabel);
         GUILayout.Label("Drag the fbx models into the scene, select them, and click the \"Create Prefabs\" to automatically generatep prefabs of the models with materials and LODs", EditorStyles.wordWrappedLabel);
 
-       if (GUILayout.Button("Create Prefabs"))
+       if (GUILayout.Button("Create QUIXEL MEGASCAN Prefabs"))
         {
-            CreatePrefabs();
+            CreateQuixelPrefabs();
         }
     }
 
-   void CreatePrefabs()
+   void CreateQuixelPrefabs()
     {
         foreach (GameObject obj in Selection.gameObjects)
         {
