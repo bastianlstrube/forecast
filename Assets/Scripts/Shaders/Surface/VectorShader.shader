@@ -44,7 +44,7 @@
 	// fragment/pixel shader returns a color for each point.
 	float4 frag(ps_input i) : COLOR
 	{
-		return float4(1.0,1.0,1.0,1.0);
+		return float4(i.pos.x/128.0f,i.pos.y / 128.0f,i.pos.z / 128.0f,1.0);
 	}
 
 		ENDCG

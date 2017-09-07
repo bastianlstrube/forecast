@@ -1,13 +1,13 @@
 using UnityEngine;
 using UnityEditor;
 
-public class PrefabCreator_Editor : EditorWindow
+public class PrefabCreatorRegularAssets_Editor : EditorWindow
 {
-    [MenuItem("Window/Prefab Creator")]
+    [MenuItem("Window/Prefab Creator Regular Assets")]
 
    public static void ShowWindow()
     {
-        GetWindow<PrefabCreator_Editor>("Prefab Creator");
+        GetWindow<PrefabCreatorRegularAssets_Editor>("Window/Prefab Creator Regular Assets");
     }
 
 

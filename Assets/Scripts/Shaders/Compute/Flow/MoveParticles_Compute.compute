@@ -12,12 +12,13 @@ float timeStep;
 struct particle
 {
 	float3 position;
-	float3 velocity;
+	float3 direction;
 	float4 color;
 	float timeElapsed;
 	float lifeSpan;
 	float3 spawnPosition;
 	float drag;
+	float velocity;
 };
 
 StructuredBuffer<float3> flowBuffer;			// array of vectors
@@ -54,7 +55,7 @@ void AdvectParticles(uint3 dispatchID : SV_DispatchThreadID)
 	if (particleBuffer[particleID].timeElapsed > particleBuffer[particleID].lifeSpan) {
 		particleBuffer[particleID].timeElapsed = 0;
 		particleBuffer[particleID].position = particleBuffer[particleID].spawnPosition;
-		particleBuffer[particleID].velocity = float3(0, 0, 0);
+		particleBuffer[particleID].velocity = 0.2f;
 	}
 
 	int bottomX = floor(particleBuffer[particleID].position.x);
@@ -77,23 +78,24 @@ void AdvectParticles(uint3 dispatchID : SV_DispatchThreadID)
 		flowBuffer[findID(topX, topY, bottomZ)] * x * y * (1 - z) +
 		flowBuffer[findID(topX, topY, topZ)] * x * y * z;
 
-	particleBuffer[particleID].velocity += value;
+	particleBuffer[particleID].direction += value;
 	particleBuffer[particleID].velocity *= drag;
-	particleBuffer[particleID].velocity *= particleBuffer[particleID].drag;
+	//particleBuffer[particleID].velocity *= particleBuffer[particleID].drag;
 
 	particleBuffer[particleID].timeElapsed += timeStep;
 
 	float percentOfLifespan = saturate(particleBuffer[particleID].timeElapsed / particleBuffer[particleID].lifeSpan);
 
-	float3 velocity = particleBuffer[particleID].velocity;
-	float squareVelocity = abs(velocity.x * velocity.x + velocity.y * velocity.y + velocity.z * velocity.z);
-	float maxSquareVelocity = 2;
+	float3 direction = particleBuffer[particleID].direction;
+	float magnitude = sqrt(direction.x * direction.x + direction.y * direction.y + direction.z * direction.z);
 
-	float alphaScale = saturate(velocityAlpha + squareVelocity / maxSquareVelocity);
-
+	particleBuffer[particleID].direction = particleBuffer[particleID].direction / magnitude;
+	
+	float alphaScale = saturate(velocityAlpha + magnitude / 2);
 	float3 scaledPosition = particleBuffer[particleID].position / velocityBoxSize;
 
-	particleBuffer[particleID].color = float4(1.0f-scaledPosition.x, scaledPosition.y, scaledPosition.z, (1-percentOfLifespan)*alphaScale);
+	particleBuffer[particleID].color = float4(1.0f, 1.0f, 1.0f, 1.0f);
+	particleBuffer[particleID].color = float4(scaledPosition.x, scaledPosition.y, scaledPosition.z, (1 - percentOfLifespan)*alphaScale);
 
-	particleBuffer[particleID].position += particleBuffer[particleID].velocity;
+	particleBuffer[particleID].position += particleBuffer[particleID].direction * particleBuffer[particleID].velocity;
 }
