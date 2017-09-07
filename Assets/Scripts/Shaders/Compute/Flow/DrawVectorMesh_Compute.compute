@@ -28,5 +28,5 @@ void CreateVectorMesh(uint3 dispatchID : SV_DispatchThreadID)
 	float3 pos = float3(dispatchID.x, dispatchID.y, dispatchID.z);
 
 	meshPointBuffer[(bufferID * 2)] = pos;
-	meshPointBuffer[(bufferID * 2) + 1] = pos + (vectorMapBuffer[bufferID]*10.0f);
+	meshPointBuffer[(bufferID * 2) + 1] = pos + (vectorMapBuffer[bufferID]*5.0f);
 }

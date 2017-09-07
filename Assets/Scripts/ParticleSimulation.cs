@@ -41,23 +41,25 @@ public class ParticleSimulation : MonoBehaviour {
     public struct Particle
     {
         public Vector3 position;        //
-        public Vector3 velocity;        //
+        public Vector3 direction;        //
         public Vector4 color;           //
         public float timeElapsed;       // How long this particle has lived
         public float lifeSpan;          //
         public Vector3 spawnPosition;   // Initial spawn position never changes
         public float thisDrag;
+        public float velocity;
 
         // Constructor
-        public Particle(Vector3 _position, Vector3 _velocity, Vector4 _color, float _timeElapsed, float _lifeSpan, Vector3 _spawnPosition, float _thisDrag)
+        public Particle(Vector3 _position, Vector3 _direction, Vector4 _color, float _timeElapsed, float _lifeSpan, Vector3 _spawnPosition, float _thisDrag, float _velocity)
         {
             position = _position;
-            velocity = _velocity;
+            direction = _direction;
             color = _color;
             timeElapsed = _timeElapsed;
             lifeSpan = _lifeSpan;
             spawnPosition = _spawnPosition;
             thisDrag = _thisDrag;
+            velocity = _velocity;
         }
     }
 
@@ -126,7 +128,7 @@ public class ParticleSimulation : MonoBehaviour {
         // create 1 dimensional buffer of float3's with a length of the box volume
         // this stores the particles' positions and colours
         flowMapBuffer = new ComputeBuffer(boxVolume, sizeof(float) * 3);
-        particleBuffer = new ComputeBuffer(numParticles, (sizeof(float) * 3) * 3 + (sizeof(float) * 4) + (sizeof(float)) * 3);
+        particleBuffer = new ComputeBuffer(numParticles, (sizeof(float) * 3) * 3 + (sizeof(float) * 4) + (sizeof(float)) * 4);
         meshPointsBuffer = new ComputeBuffer(boxVolume * 2, sizeof(float) * 3);
 
         InitialiseVectorMap();
@@ -146,11 +148,13 @@ public class ParticleSimulation : MonoBehaviour {
 
                 float xVelocity, yVelocity, zVelocity = 0;
 
-                xVelocity = (xPosition % 5) - (xPosition % 10)/2f;
-                yVelocity = (yPosition % 5) - (yPosition % 10)/2f;
-                zVelocity = (zPosition % 5) - (zPosition % 10)/2f;
+                xVelocity = Mathf.Sin(xPosition / 5f) * Mathf.Cos(xPosition / 25f);
+                yVelocity = Mathf.Cos(yPosition / 5f) * Mathf.Cos(zPosition / 10f);
+                zVelocity = 0f;
 
-                flowMap[i] = new Vector3(xVelocity * 0.05f, xVelocity * 0.05f, xVelocity * 0.05f);
+                flowMap[i] = new Vector3(xVelocity * 0.05f, yVelocity * 0.05f, zVelocity * 0.05f);
+                flowMap[i] = Vector3.zero;
+                //flowMap[i] = new Vector3(Random.Range(-0.05f, 0.05f), Random.Range(-0.05f, 0.05f), Random.Range(-0.05f, 0.05f));
 
                 /*
                 if (xPosition % 5 == 0)
@@ -180,8 +184,9 @@ public class ParticleSimulation : MonoBehaviour {
         for (int i = 0; i < numParticles; i++)
         {
             Vector3 spawnPosition = new Vector3(Random.Range(0.0f, velocityBoxSize.x), Random.Range(0.0f, velocityBoxSize.y), Random.Range(0.0f, velocityBoxSize.z));
-
-            particleMap[i] = new Particle(spawnPosition, Vector3.zero, Vector4.zero, 0, Random.Range(particleLifeSpan.min, particleLifeSpan.max), spawnPosition, 1.0f);
+            Vector3 startDirection = new Vector3(Random.Range(-1.0f, 1.0f), Random.Range(-1.0f, 1.0f), Random.Range(-1.0f, 1.0f));
+            //startDirection = Vector3.zero;
+            particleMap[i] = new Particle(spawnPosition, startDirection.normalized, Vector4.zero, 0, Random.Range(particleLifeSpan.min, particleLifeSpan.max), spawnPosition, 1.0f, 0.02f);
         }
 
         particleBuffer.SetData(particleMap);
