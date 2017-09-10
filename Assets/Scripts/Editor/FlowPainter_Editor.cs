@@ -4,7 +4,10 @@ using UnityEngine;
 using UnityEditor;
 using Utility;
 
+[ExecuteInEditMode]
 public class FlowPainter_Editor : EditorWindow {
+
+    public static ParticleSimulation particleSimulation;
 
     enum BrushType
     {
@@ -234,6 +237,12 @@ public class FlowPainter_Editor : EditorWindow {
 
     void OnSceneGUI(SceneView sceneView)
     {
+
+        if(EditorApplication.isPlaying)
+        {
+            particleSimulation = GameObject.FindGameObjectWithTag("ParticleSimulation").GetComponent<ParticleSimulation>();
+        }
+
         Vector3 brushPosition = new Vector3(99999,99999,99999);
 
         Event e = Event.current;
@@ -304,15 +313,27 @@ public class FlowPainter_Editor : EditorWindow {
                 }
                 else
                 {
+                    
                     moveVector = (brushPosition - brushPositionPrev).normalized;
                     brushPositionPrev = brushPosition;
                 }
-
-            }
+            } 
             else if (e.type == EventType.MouseUp)
             {
                 brushPositionPrev = new Vector3(99999, 99999, 99999);
                 moveVector = Vector3.zero;
+                
+            } else
+            {
+                moveVector = Vector3.zero;
+            }
+
+            if (particleSimulation)
+            {
+                particleSimulation.flowpainterSourcePosition = brushPosition;
+                particleSimulation.flowpainterBrushDistance = brushDistance;
+                particleSimulation.flowpainterSourceVelocity = moveVector;
+                particleSimulation.flowpainterBrushSize = brushSize;
             }
 
             if (brushType == BrushType.Sphere)
@@ -333,9 +354,17 @@ public class FlowPainter_Editor : EditorWindow {
             {
                 Handles.DrawWireCube(brushPosition, Vector3.one * brushSize);
             }
-            Handles.color = Color.white * 0.5f;
-            Handles.DrawDottedLine(brushPosition, new Vector3(brushPosition.x, 0, brushPosition.z),1);
+            Handles.color = Color.blue * 0.5f;
+            Handles.DrawDottedLine(brushPosition, new Vector3(0, brushPosition.y, brushPosition.z), 1);
+            Handles.DrawWireDisc(new Vector3(0, brushPosition.y, brushPosition.z), Vector3.right, brushSize);
+
+            Handles.color = Color.green * 0.5f;
+            Handles.DrawDottedLine(brushPosition, new Vector3(brushPosition.x, 0, brushPosition.z), 1);
             Handles.DrawWireDisc(new Vector3(brushPosition.x, 0, brushPosition.z), Vector3.up, brushSize);
+
+            Handles.color = Color.red * 0.5f;
+            Handles.DrawDottedLine(brushPosition, new Vector3(brushPosition.x, brushPosition.y, 0), 1);
+            Handles.DrawWireDisc(new Vector3(brushPosition.x, brushPosition.y, 0), Vector3.forward, brushSize);
 
         } else
         {
@@ -353,6 +382,15 @@ public class FlowPainter_Editor : EditorWindow {
     void OnDestroy()
     {
         SceneView.onSceneGUIDelegate -= this.OnSceneGUI;
+    }
+
+
+
+    static void Start()
+    {
+        
+        Debug.Log("HI");
+
     }
 }
 

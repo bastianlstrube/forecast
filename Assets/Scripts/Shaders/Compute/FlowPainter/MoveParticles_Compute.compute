@@ -55,7 +55,6 @@ void AdvectParticles(uint3 dispatchID : SV_DispatchThreadID)
 	if (particleBuffer[particleID].timeElapsed > particleBuffer[particleID].lifeSpan) {
 		particleBuffer[particleID].timeElapsed = 0;
 		particleBuffer[particleID].position = particleBuffer[particleID].spawnPosition;
-		particleBuffer[particleID].velocity = 0.2f;
 	}
 
 	int bottomX = floor(particleBuffer[particleID].position.x);
@@ -77,6 +76,8 @@ void AdvectParticles(uint3 dispatchID : SV_DispatchThreadID)
 		flowBuffer[findID(bottomX, topY, topZ)] * (1 - x) * y * z +
 		flowBuffer[findID(topX, topY, bottomZ)] * x * y * (1 - z) +
 		flowBuffer[findID(topX, topY, topZ)] * x * y * z;
+
+	particleBuffer[particleID].velocity = value.x * value.x + value.y * value.y + value.z * value.z;
 
 	particleBuffer[particleID].direction += value;
 	particleBuffer[particleID].velocity *= drag;

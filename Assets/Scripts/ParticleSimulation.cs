@@ -67,6 +67,8 @@ public class ParticleSimulation : MonoBehaviour {
     // Push the particles around
     public ComputeShader advectParticlesComputeShader;
 
+    public ComputeShader flowPainterComputeShader;
+
     // Used for debugging the fluid vector field
     public ComputeShader vectorMeshComputeShader;
 
@@ -102,6 +104,7 @@ public class ParticleSimulation : MonoBehaviour {
 
     // kernels
     private int advectParticleKernel;
+    private int flowPainterKernel;
     private int meshComputeKernel;
 
     // materials
@@ -110,6 +113,15 @@ public class ParticleSimulation : MonoBehaviour {
 
     // Other variables
     private int boxVolume;          // volume of the box, calculated at runtime from side length
+
+    [HideInInspector]
+    public Vector3 flowpainterSourcePosition = Vector3.zero;
+    [HideInInspector]
+    public float flowpainterBrushDistance = 0.0f;
+    [HideInInspector]
+    public Vector3 flowpainterSourceVelocity = Vector3.zero;
+    [HideInInspector]
+    public float flowpainterBrushSize = 1f;
 
     void Start()
     {
@@ -124,12 +136,13 @@ public class ParticleSimulation : MonoBehaviour {
         // find the compute shader's "main" function and store it
         advectParticleKernel = advectParticlesComputeShader.FindKernel("AdvectParticles");
         meshComputeKernel = vectorMeshComputeShader.FindKernel("CreateVectorMesh");
+        flowPainterKernel = flowPainterComputeShader.FindKernel("PaintFlow");
 
         // create 1 dimensional buffer of float3's with a length of the box volume
         // this stores the particles' positions and colours
         flowMapBuffer = new ComputeBuffer(boxVolume, sizeof(float) * 3);
         particleBuffer = new ComputeBuffer(numParticles, (sizeof(float) * 3) * 3 + (sizeof(float) * 4) + (sizeof(float)) * 4);
-        meshPointsBuffer = new ComputeBuffer(boxVolume * 2, sizeof(float) * 3);
+        meshPointsBuffer = new ComputeBuffer(boxVolume * 2, sizeof(float) * 3 + sizeof(float) * 4);
 
         InitialiseVectorMap();
         InitialiseParticles();
@@ -142,19 +155,19 @@ public class ParticleSimulation : MonoBehaviour {
         {
             if (useRandomStartVelocities)
             {
-                int xPosition = i % velocityBoxSize.z;
-                int yPosition = (i / velocityBoxSize.z) % velocityBoxSize.y;
-                int zPosition = i / (velocityBoxSize.y * velocityBoxSize.z);
+                //int xPosition = i % velocityBoxSize.z;
+                //int yPosition = (i / velocityBoxSize.z) % velocityBoxSize.y;
+                //int zPosition = i / (velocityBoxSize.y * velocityBoxSize.z);
 
-                float xVelocity, yVelocity, zVelocity = 0;
+                //float xVelocity, yVelocity, zVelocity = 0;
 
-                xVelocity = Mathf.Sin(xPosition / 5f) * Mathf.Cos(xPosition / 25f);
-                yVelocity = Mathf.Cos(yPosition / 5f) * Mathf.Cos(zPosition / 10f);
-                zVelocity = 0f;
+                //xVelocity = Mathf.Sin(xPosition / 5f) * Mathf.Cos(xPosition / 25f);
+                //yVelocity = Mathf.Cos(yPosition / 5f) * Mathf.Cos(zPosition / 10f);
+                //zVelocity = 0f;
 
-                flowMap[i] = new Vector3(xVelocity * 0.05f, yVelocity * 0.05f, zVelocity * 0.05f);
+                //flowMap[i] = new Vector3(xVelocity * 0.05f, yVelocity * 0.05f, zVelocity * 0.05f);
                 flowMap[i] = Vector3.zero;
-                //flowMap[i] = new Vector3(Random.Range(-0.05f, 0.05f), Random.Range(-0.05f, 0.05f), Random.Range(-0.05f, 0.05f));
+                //flowMap[i] = new Vector3(Random.Range(-0.05f, 0.05f), Random.Range(-0.05f, 0.05f), Random.Range(-0.05f, 0.05f)).normalized;
 
                 /*
                 if (xPosition % 5 == 0)
@@ -186,7 +199,7 @@ public class ParticleSimulation : MonoBehaviour {
             Vector3 spawnPosition = new Vector3(Random.Range(0.0f, velocityBoxSize.x), Random.Range(0.0f, velocityBoxSize.y), Random.Range(0.0f, velocityBoxSize.z));
             Vector3 startDirection = new Vector3(Random.Range(-1.0f, 1.0f), Random.Range(-1.0f, 1.0f), Random.Range(-1.0f, 1.0f));
             //startDirection = Vector3.zero;
-            particleMap[i] = new Particle(spawnPosition, startDirection.normalized, Vector4.zero, 0, Random.Range(particleLifeSpan.min, particleLifeSpan.max), spawnPosition, 1.0f, 0.02f);
+            particleMap[i] = new Particle(spawnPosition, startDirection.normalized, Vector4.zero, 0, Random.Range(particleLifeSpan.min, particleLifeSpan.max), spawnPosition, 1.0f, 0f);
         }
 
         particleBuffer.SetData(particleMap);
@@ -218,7 +231,29 @@ public class ParticleSimulation : MonoBehaviour {
         vectorMeshComputeShader.SetInt("numThreadGroupsX", velocityBoxSize.x / 8);
         vectorMeshComputeShader.SetInt("numThreadGroupsY", velocityBoxSize.y / 8);
         vectorMeshComputeShader.SetInt("numThreadGroupsZ", velocityBoxSize.z / 8);
+        vectorMeshComputeShader.SetVector("brushPosition", flowpainterSourcePosition);
+        vectorMeshComputeShader.SetFloat("brushSize", flowpainterBrushSize);
         vectorMeshComputeShader.Dispatch(meshComputeKernel, velocityBoxSize.x / 8, velocityBoxSize.y / 8, velocityBoxSize.z / 8);
+    }
+
+    void PaintFlow()
+    {
+        flowPainterComputeShader.SetVector("worldPos", transform.position);
+        flowPainterComputeShader.SetVector("worldScale", transform.localScale);
+        flowPainterComputeShader.SetInt("numThreadGroupsX", velocityBoxSize.x / 8);
+        flowPainterComputeShader.SetInt("numThreadGroupsY", velocityBoxSize.y / 8);
+        flowPainterComputeShader.SetInt("numThreadGroupsZ", velocityBoxSize.z / 8);
+        flowPainterComputeShader.SetFloat("timeStep", Time.deltaTime);
+        flowPainterComputeShader.SetFloat("sourceSize", flowpainterBrushSize);
+        flowPainterComputeShader.SetVector("sourcePosition", flowpainterSourcePosition);
+        flowPainterComputeShader.SetVector("sourceVelocity", flowpainterSourceVelocity);
+        if (flowpainterSourceVelocity.magnitude > 0)
+            flowPainterComputeShader.SetBool("painting", true);
+        else
+            flowPainterComputeShader.SetBool("painting", false);
+        flowPainterComputeShader.SetBuffer(flowPainterKernel, "flowBuffer", flowMapBuffer);
+        flowPainterComputeShader.Dispatch(flowPainterKernel, velocityBoxSize.x / 8, velocityBoxSize.y / 8, velocityBoxSize.z / 8);
+
     }
 
     private void Update()
@@ -226,9 +261,13 @@ public class ParticleSimulation : MonoBehaviour {
         // move the particles along the fluid
         AdvectParticles();
 
+        PaintFlow();
+
         // draw the vector map in the editor
         if (drawVelocityVectors)
             DrawVelocityVectors();
+
+        
     }
 
     // render the materials
@@ -250,6 +289,8 @@ public class ParticleSimulation : MonoBehaviour {
         if (drawVelocityVectors)
         {
             vectorMaterial.SetPass(0);
+            vectorMaterial.SetFloat("_PaintBrushSize", flowpainterBrushSize);
+            vectorMaterial.SetFloat("_PaintSourceDistance", flowpainterBrushDistance);
             vectorMaterial.SetBuffer("buf_Points", meshPointsBuffer);
 
             Graphics.DrawProcedural(MeshTopology.Lines, meshPointsBuffer.count);
@@ -272,7 +313,9 @@ public class ParticleSimulation : MonoBehaviour {
     {
         Gizmos.color = new Color(1, 0, 0, 0.5F);
         Vector3 cube = new Vector3(velocityBoxSize.x * transform.localScale.x, velocityBoxSize.y * transform.localScale.y, velocityBoxSize.z * transform.localScale.z);
-        Gizmos.DrawCube(transform.position + cube / 2, cube);
+        Gizmos.DrawWireCube(transform.position + cube / 2, cube);
+
+        
     }
 
 }

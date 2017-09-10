@@ -1,4 +1,4 @@
-﻿Shader "Custom/ParticleBillboardShader2" 
+﻿Shader "Flow/ParticleSurfaceShader" 
 {
 
 	Properties
