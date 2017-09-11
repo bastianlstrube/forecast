@@ -97,6 +97,12 @@ public class ParticleSimulation : MonoBehaviour {
     public Color globalTint = Color.white;
     public bool useVelocityAlpha = false;
 
+    [Space(10.0f)]
+    [Header("Color Fractals")]
+    public Vector2 fold = new Vector2(0.5f, -0.5f);
+    public Vector2 translate = new Vector2(1.5f, 1.5f);
+    public float scale = 1.3f;
+
     // Buffers for storing data in the compute buffer
     private ComputeBuffer flowMapBuffer;
     private ComputeBuffer particleBuffer;
@@ -148,7 +154,7 @@ public class ParticleSimulation : MonoBehaviour {
         InitialiseParticles();
     }
 
-    void InitialiseVectorMap()
+    public void InitialiseVectorMap()
     {
         Vector3[] flowMap = new Vector3[boxVolume];
         for (int i = 0; i < boxVolume; i++)
@@ -218,6 +224,11 @@ public class ParticleSimulation : MonoBehaviour {
         else
             advectParticlesComputeShader.SetInt("velocityAlpha", 1);
         advectParticlesComputeShader.SetFloat("timeStep", Time.deltaTime);
+        advectParticlesComputeShader.SetFloat("currentTime", Time.time);
+
+        advectParticlesComputeShader.SetVector("fold", fold);
+        advectParticlesComputeShader.SetVector("translate", translate);
+        advectParticlesComputeShader.SetFloat("scale", scale);
 
         advectParticlesComputeShader.SetVector("velocityBoxSize", new Vector3(velocityBoxSize.x * transform.localScale.x, velocityBoxSize.y * transform.localScale.y, velocityBoxSize.z * transform.localScale.z));
         advectParticlesComputeShader.Dispatch(advectParticleKernel, numParticles / 512, 1, 1);

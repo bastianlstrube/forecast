@@ -11,39 +11,24 @@ public class FlowPainter_Editor : EditorWindow {
 
     enum BrushType
     {
-        Sphere,
-        Cube
+        Paint,
+        Erase
     };
 
-    [System.Serializable]
-    public struct IntVector3
-    {
-        public int x;
-        public int y;
-        public int z;
-
-        // Constructor
-        public IntVector3(int _x, int _y, int _z)
-        {
-            x = _x;
-            y = _y;
-            z = _z;
-        }
-    }
-
-    bool flowMapLoaded = false;
     bool painting = false;
     float brushSize = 10f;
     float brushDistance = 150f;
-    BrushType brushType = BrushType.Sphere;
+    BrushType brushType = BrushType.Paint;
     Vector3 brushPositionPrev = new Vector3(99999, 99999, 99999);
 
-    private Texture sphereButtonTexture;
-    private Texture cubeButtonTexture;
-    private IntVector3 velocityBoxSize = new IntVector3(12, 12, 12);
-    int boxVolume = 12 * 12 * 12;
+    private Texture paintButtonTexture;
+    private Texture eraseButtonTexture;
     private Vector3 moveVector = Vector3.zero;
-    Vector3[] flowMap;
+
+    private bool checkAction = false;
+    private bool unsaved = false;
+
+
 
     [MenuItem("Window/Flow Painter")]
     public static void ShowWindow()
@@ -55,67 +40,83 @@ public class FlowPainter_Editor : EditorWindow {
     {
         SceneView.onSceneGUIDelegate -= this.OnSceneGUI;
         SceneView.onSceneGUIDelegate += this.OnSceneGUI;
-        cubeButtonTexture = (Texture)AssetDatabase.LoadAssetAtPath("Assets/Scripts/Editor/Textures/cubeBrush.png", typeof(Texture));
-        sphereButtonTexture = (Texture)AssetDatabase.LoadAssetAtPath("Assets/Scripts/Editor/Textures/sphereBrush.png", typeof(Texture));
-        flowMapLoaded = false;
-    }
-
-    void NewFlow()
-    {
-        boxVolume = velocityBoxSize.x * velocityBoxSize.y * velocityBoxSize.z;
-        flowMap = new Vector3[boxVolume];
-        for (int i = 0; i < boxVolume; i++)
-        {
-            flowMap[i] = Vector3.zero;
-        }
-        flowMapLoaded = true;
-        //DrawVelocityBox();
-    }
-
-    void DrawVelocityBox(Vector3 brushPosition)
-    {
-        if (flowMapLoaded)
-        {
-            for (int i = 0; i < boxVolume; i++)
-            {
-                int xPosition = i % velocityBoxSize.z;
-                int yPosition = (i / velocityBoxSize.z) % velocityBoxSize.y;
-                int zPosition = i / (velocityBoxSize.y * velocityBoxSize.z);
-
-                Vector3 position = new Vector3(xPosition, yPosition, zPosition);
-
-                if((position-brushPosition).magnitude <= brushSize)
-                {
-                    Handles.color = Color.red;
-                    if(moveVector != Vector3.zero)
-                        flowMap[i] = moveVector;
-                } else
-                {
-                    Handles.color = Color.white * 0.2f;
-                }
-                
-                if (flowMap[i] == Vector3.zero)
-                {
-                    Handles.DrawLine(position - Vector3.up * 0.05f, position + Vector3.up * 0.05f);
-                    Handles.DrawLine(position - Vector3.right * 0.05f, position + Vector3.right * 0.05f);
-                    Handles.DrawLine(position - Vector3.forward * 0.05f, position + Vector3.forward * 0.05f);
-                } else {
-                    Handles.color = Color.white * 0.5f;
-                    Handles.DrawLine(position, position + flowMap[i] * 0.5f);
-                }
-            }
-        }
+        paintButtonTexture = (Texture)AssetDatabase.LoadAssetAtPath("Assets/Scripts/Editor/Textures/paintBrush.png", typeof(Texture));
+        eraseButtonTexture = (Texture)AssetDatabase.LoadAssetAtPath("Assets/Scripts/Editor/Textures/eraseBrush.png", typeof(Texture));
     }
 
     void OnGUI()
     {
-        GUILayout.BeginHorizontal(GUIStyle.none);
-        if(GUILayout.Button("New Flow"))
+        
+
+        if (checkAction)
         {
-            NewFlow();
+            GUILayout.Label("There are unsaved changes. Proceed?");
+
+            GUILayout.BeginHorizontal(GUIStyle.none);
+            if (GUILayout.Button("No"))
+            {
+                checkAction = false;
+            }
+            if (GUILayout.Button("Yes"))
+            {
+                checkAction = false;
+                ClearFlow();
+            }
         }
-        GUILayout.Button("Load Flow");
-        GUILayout.Button("Save Flow");
+        else
+        {
+            if (unsaved)
+            {
+                GUILayout.Label("Flow01.flo *");
+            } else
+            {
+                GUILayout.Label("Flow01.flo  ");
+            }
+
+            GUILayout.BeginHorizontal(GUIStyle.none);
+            if (GUILayout.Button("Clear Flow"))
+            {
+                if(unsaved)
+                    checkAction = true;
+                else
+                    ClearFlow();
+            }
+            
+
+            if (GUILayout.Button("Save  "))
+            {
+                if (unsaved)
+                {
+                    Debug.Log("Flow saved to C:/fjkohfa/flow01.flo");
+                    unsaved = false;
+                }
+                else
+                {
+                    Debug.Log("No flow changes to save");
+                }
+            }
+            if (GUILayout.Button("Save As..."))
+            {
+                if (unsaved)
+                {
+                    Debug.Log("Flow saved to C:/fjkohfa/flow01.flo");
+                    unsaved = false;
+                }
+                else
+                {
+                    Debug.Log("No flow changes to save");
+                }
+            }
+
+            if (GUILayout.Button("Load..."))
+            {
+                if (unsaved)
+                    checkAction = true;
+                else
+                    LoadFlow();
+            }
+
+        }
         GUILayout.EndHorizontal();
 
         GUILayout.Space(15);
@@ -157,26 +158,26 @@ public class FlowPainter_Editor : EditorWindow {
 
         GUILayout.Space(15);
 
-        GUILayout.BeginArea(new Rect(new Vector2(10f, 70f), new Vector2(170f, 130f)));
-        GUILayout.Label("Brush Shape", boldText);
+        GUILayout.BeginArea(new Rect(new Vector2(10f, 100f), new Vector2(170f, 130f)));
+        GUILayout.Label("Tool", boldText);
         GUILayout.BeginHorizontal();
-        if (GUILayout.Toggle(brushType==BrushType.Sphere, "Sphere (s)"))
+        if (GUILayout.Toggle(brushType==BrushType.Paint, "Paint (a)"))
         {
-            brushType = BrushType.Sphere;
+            brushType = BrushType.Paint;
         }
-        if(GUILayout.Toggle(brushType == BrushType.Cube, "Cube (c)"))
+        if(GUILayout.Toggle(brushType == BrushType.Erase, "Erase (s)"))
         {
-            brushType = BrushType.Cube;
+            brushType = BrushType.Erase;
         }
         GUILayout.EndHorizontal();
         GUILayout.BeginHorizontal();
-        GUILayout.Box(sphereButtonTexture, GUILayout.Width(75), GUILayout.Height(75));
+        GUILayout.Box(paintButtonTexture, GUILayout.Width(75), GUILayout.Height(75));
         GUILayout.Space(5);
-        GUILayout.Box(cubeButtonTexture, GUILayout.Width(75), GUILayout.Height(75));
+        GUILayout.Box(eraseButtonTexture, GUILayout.Width(75), GUILayout.Height(75));
         GUILayout.EndHorizontal();
         GUILayout.EndArea();
 
-        GUILayout.BeginArea(new Rect(new Vector2(200f, 70f), new Vector2(150f, 300f)));
+        GUILayout.BeginArea(new Rect(new Vector2(200f, 100f), new Vector2(150f, 300f)));
 
         GUILayout.Label("Brush Size", boldText);
         
@@ -253,11 +254,11 @@ public class FlowPainter_Editor : EditorWindow {
                 case KeyCode.P:
                     painting = !painting;
                     break;
-                case KeyCode.S:
-                    brushType = BrushType.Sphere;
+                case KeyCode.A:
+                    brushType = BrushType.Paint;
                     break;
-                case KeyCode.C:
-                    brushType = BrushType.Cube;
+                case KeyCode.S:
+                    brushType = BrushType.Erase;
                     break;
                 case KeyCode.Plus:
                 case KeyCode.KeypadPlus:
@@ -306,6 +307,7 @@ public class FlowPainter_Editor : EditorWindow {
 
             if (e.type == EventType.MouseDrag && !e.alt && e.button == 0)
             {
+                unsaved = true;
                 if (brushPositionPrev == new Vector3(99999, 99999, 99999))
                 {
                     brushPositionPrev = brushPosition;
@@ -313,7 +315,6 @@ public class FlowPainter_Editor : EditorWindow {
                 }
                 else
                 {
-                    
                     moveVector = (brushPosition - brushPositionPrev).normalized;
                     brushPositionPrev = brushPosition;
                 }
@@ -334,9 +335,12 @@ public class FlowPainter_Editor : EditorWindow {
                 particleSimulation.flowpainterBrushDistance = brushDistance;
                 particleSimulation.flowpainterSourceVelocity = moveVector;
                 particleSimulation.flowpainterBrushSize = brushSize;
+
+                Handles.color = Color.white;
+                Handles.DrawDottedLine(brushPosition, brushPosition + moveVector * 5f, 1);
             }
 
-            if (brushType == BrushType.Sphere)
+            if (brushType == BrushType.Paint)
             {
                 Handles.color = Color.white;
                 Handles.DrawWireDisc(brushPosition, ray.direction.normalized, brushSize);
@@ -350,9 +354,23 @@ public class FlowPainter_Editor : EditorWindow {
                 Handles.DrawWireDisc(brushPosition, Vector3.right, brushSize);
                 Handles.color = Color.blue;
                 Handles.DrawWireDisc(brushPosition, Vector3.forward, brushSize);
-            } else if (brushType == BrushType.Cube)
+            } else if (brushType == BrushType.Erase)
             {
-                Handles.DrawWireCube(brushPosition, Vector3.one * brushSize);
+                Handles.color = Color.black;
+                Handles.DrawWireDisc(brushPosition, ray.direction.normalized, brushSize);
+                Handles.color = Color.yellow;
+                Handles.DrawWireDisc(brushPosition, ray.direction.normalized, brushSize+0.5f);
+
+                float alphaScale = 0.5f - brushDistance / 20f;
+                Handles.color = new Color(1, 1, 1, alphaScale);
+
+                Handles.DrawWireDisc(brushPosition, ray.direction.normalized, brushSize * 1.1f);
+                Handles.color = Color.red;
+                Handles.DrawWireDisc(brushPosition, Vector3.up, brushSize);
+                Handles.color = Color.green;
+                Handles.DrawWireDisc(brushPosition, Vector3.right, brushSize);
+                Handles.color = Color.blue;
+                Handles.DrawWireDisc(brushPosition, Vector3.forward, brushSize);
             }
             Handles.color = Color.blue * 0.5f;
             Handles.DrawDottedLine(brushPosition, new Vector3(0, brushPosition.y, brushPosition.z), 1);
@@ -365,15 +383,10 @@ public class FlowPainter_Editor : EditorWindow {
             Handles.color = Color.red * 0.5f;
             Handles.DrawDottedLine(brushPosition, new Vector3(brushPosition.x, brushPosition.y, 0), 1);
             Handles.DrawWireDisc(new Vector3(brushPosition.x, brushPosition.y, 0), Vector3.forward, brushSize);
-
         } else
         {
             //HandleUtility.AddDefaultControl(GUIUtility.GetControlID(FocusType.Passive));
         }
-
-
-
-        DrawVelocityBox(brushPosition);
 
         Handles.EndGUI();
         SceneView.RepaintAll();
@@ -384,14 +397,19 @@ public class FlowPainter_Editor : EditorWindow {
         SceneView.onSceneGUIDelegate -= this.OnSceneGUI;
     }
 
-
-
-    static void Start()
+    void ClearFlow()
     {
-        
-        Debug.Log("HI");
+        if(particleSimulation)
+            particleSimulation.InitialiseVectorMap();
 
+        unsaved = false;
     }
+
+    void LoadFlow()
+    {
+        unsaved = false;
+    }
+
 }
 
 
