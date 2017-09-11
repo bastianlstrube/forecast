@@ -44,11 +44,14 @@ internal sealed class CustomAssetImporter : AssetPostprocessor {
         if( fileName.Contains("normal") ) {
             importer.textureType = TextureImporterType.NormalMap;
         }
-        if( fileName.Contains("cavity") || fileName.Contains("roughness") || fileName.Contains("displacement") || fileName.Contains("albedo") ) {
+        
+        if ( fileName.Contains("cavity") || fileName.Contains("roughness") || fileName.Contains("displacement") ) {
             importer.sRGBTexture = false;
         }
-
-
+        if (fileName.Contains("albedo"))
+        {
+            importer.sRGBTexture = true;
+        }
 
         // If you are only using the alpha channel for transparency, uncomment the below line. I commented it out because I use the alpha channel for various shaders (e.g. specular map or various other masks)
         //importer.alphaIsTransparency = importer.DoesSourceTextureHaveAlpha();
