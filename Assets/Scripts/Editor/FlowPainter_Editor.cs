@@ -106,8 +106,12 @@ public class FlowPainter_Editor : EditorWindow {
                 {
                     if (unsaved)
                     {
-                        SaveFlow(false);
                         unsaved = false;
+                        if (persistentFilePath != "")
+                            SaveFlow(false);
+                        else
+                            SaveFlow(true);
+                        
                     }
                     else
                     {
@@ -116,15 +120,8 @@ public class FlowPainter_Editor : EditorWindow {
                 }
                 if (GUILayout.Button("Save As..."))
                 {
-                    if (unsaved)
-                    {
-                        SaveFlow(true);
-                        unsaved = false;
-                    }
-                    else
-                    {
-                        Debug.Log("No flow changes to save");
-                    }
+                    SaveFlow(true);
+                    unsaved = false;
                 }
 
                 if (GUILayout.Button("Load..."))
@@ -454,14 +451,23 @@ public class FlowPainter_Editor : EditorWindow {
         
         if (File.Exists(path))
         {
-            EditorUtility.DisplayProgressBar("Loading " + Path.GetFileName(path), "This may take some time", 0f);
+            System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
+            timer.Start();
+
+            EditorUtility.DisplayProgressBar("Loading " + Path.GetFileName(path), "Loading Flow Map file from system...", 0f);
 
             BinaryFormatter bf = new BinaryFormatter();
             FileStream fileStream = new FileStream(path, FileMode.Open);
 
+            EditorUtility.DisplayProgressBar("Loading " + Path.GetFileName(path), "Deserializing Flow Map...", 0.2f);
+
             FlowMap flowMap = bf.Deserialize(fileStream) as FlowMap;
 
+            EditorUtility.DisplayProgressBar("Loading " + Path.GetFileName(path), "Closing filestream...", 0.8f);
+
             fileStream.Close();
+
+            EditorUtility.DisplayProgressBar("Loading " + Path.GetFileName(path), "Passing Flow Map to GPU...", 0.9f);
 
             particleSimulation.SetFlowMap(flowMap.DeserializeFlowMap(), flowMap.mapSizeX, flowMap.mapSizeY, flowMap.mapSizeZ);
             filename = Path.GetFileName(path);
@@ -483,34 +489,47 @@ public class FlowPainter_Editor : EditorWindow {
             persistentFilePath = path;
             if (path != "")
             {
+                EditorUtility.DisplayProgressBar("Saving " + Path.GetFileName(path), "Grabbing Flow Map from GPU...", 0.1f);
                 FlowMap flowMap = new FlowMap(particleSimulation.GetFlowMap(), particleSimulation.velocityBoxSize.x, particleSimulation.velocityBoxSize.y, particleSimulation.velocityBoxSize.z);
 
                 BinaryFormatter bf = new BinaryFormatter();
                 FileStream fileStream = new FileStream(path, FileMode.Create);
 
+                EditorUtility.DisplayProgressBar("Saving " + Path.GetFileName(path), "Serializing flow map...", 0.3f);
                 bf.Serialize(fileStream, flowMap);
                 fileStream.Close();
+
+                EditorUtility.DisplayProgressBar("Saving " + Path.GetFileName(path), "Saving to file...", 0.9f);
 
                 Debug.Log("Saved flow as: " + path);
                 filename = Path.GetFileName(path);
                 unsaved = false;
+
+                EditorUtility.ClearProgressBar();
             }
         } else
         {
             if (persistentFilePath != "")
             {
-                Debug.Log(persistentFilePath);
+                EditorUtility.DisplayProgressBar("Saving " + Path.GetFileName(persistentFilePath), "Grabbing Flow Map from GPU...", 0.1f);
+                
                 FlowMap flowMap = new FlowMap(particleSimulation.GetFlowMap(), particleSimulation.velocityBoxSize.x, particleSimulation.velocityBoxSize.y, particleSimulation.velocityBoxSize.z);
 
                 BinaryFormatter bf = new BinaryFormatter();
                 FileStream fileStream = new FileStream(persistentFilePath, FileMode.Create);
 
+                EditorUtility.DisplayProgressBar("Saving " + Path.GetFileName(persistentFilePath), "Serializing flow map...", 0.3f);
+
                 bf.Serialize(fileStream, flowMap);
                 fileStream.Close();
+
+                EditorUtility.DisplayProgressBar("Saving " + Path.GetFileName(persistentFilePath), "Saving to file...", 0.9f);
 
                 Debug.Log("Saved flow: " + persistentFilePath);
                 filename = Path.GetFileName(persistentFilePath);
                 unsaved = false;
+
+                EditorUtility.ClearProgressBar();
             }
         }
         
