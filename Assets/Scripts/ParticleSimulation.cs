@@ -109,8 +109,8 @@ public class ParticleSimulation : MonoBehaviour {
     public float sizeByVelocity = 200.0f;
     public Color globalTint = Color.white;
     public bool useVelocityAlpha = false;
-    public AnimationCurve spawnDensityZ;
-    public AnimationCurve sizeByZPosition;
+    public AnimationCurve spawnDensityZ = AnimationCurve.Linear(0, 0, 1, 1);
+    public AnimationCurve sizeByZPosition = AnimationCurve.Linear(0, 1, 1, 0);
 
     [Space(10.0f)]
     [Header("Color Fractals")]
@@ -255,10 +255,11 @@ public class ParticleSimulation : MonoBehaviour {
         for (int i = 0; i < numParticles; i++)
         {
             float zPosition = spawnDensityZ.Evaluate(Random.value) * velocityBoxSize.z;
+            float lifeSpan = particleLifeSpan.min + spawnDensityZ.Evaluate(Random.value) * (particleLifeSpan.max- particleLifeSpan.min);
             Vector3 spawnPosition = new Vector3(Random.Range(0.0f, velocityBoxSize.x), Random.Range(0.0f, velocityBoxSize.y), zPosition);
             Vector3 startDirection = new Vector3(Random.Range(-1.0f, 1.0f), Random.Range(-1.0f, 1.0f), Random.Range(-1.0f, 1.0f));
             //startDirection = Vector3.zero;
-            particleMap[i] = new Particle(spawnPosition, startDirection.normalized, Vector4.zero, 0, Random.Range(particleLifeSpan.min, particleLifeSpan.max), spawnPosition, 1.0f, 0f);
+            particleMap[i] = new Particle(spawnPosition, startDirection.normalized, Vector4.zero, 0, lifeSpan, spawnPosition, 1.0f, 0f);
         }
 
         particleBuffer.SetData(particleMap);
