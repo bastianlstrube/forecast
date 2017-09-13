@@ -28,6 +28,9 @@
 
 	float _PaintBrushSize = 10.0f;
 	float _PaintSourceDistance = 150.0f;
+	float3 _worldPos;
+	float3 _localScale;
+
 	struct vectorStruct
 	{
 		float3 pos;
@@ -50,7 +53,7 @@
 		// output struct, which is sent to the fragment shader
 		ps_input o;
 
-		float3 worldPos = buf_Points[id].pos;
+		float3 worldPos = _worldPos + buf_Points[id].pos * _localScale;
 
 		// transform the position
 		o.pos = mul(UNITY_MATRIX_VP, float4(worldPos,1.0f));

@@ -285,6 +285,9 @@ public class FlowPainter_Editor : EditorWindow {
                     case KeyCode.S:
                         brushType = BrushType.Erase;
                         break;
+                    case KeyCode.V:
+                        particleSimulation.drawVelocityVectors = !particleSimulation.drawVelocityVectors;
+                        break;
                     case KeyCode.Plus:
                     case KeyCode.KeypadPlus:
                         brushSize += 0.1f;
@@ -410,15 +413,15 @@ public class FlowPainter_Editor : EditorWindow {
                 }
                 Handles.color = Color.blue * 0.5f;
                 Handles.DrawDottedLine(brushPosition, new Vector3(0, brushPosition.y, brushPosition.z), 1);
-                Handles.DrawWireDisc(new Vector3(0, brushPosition.y, brushPosition.z), Vector3.right, brushSize);
+                Handles.DrawWireDisc(new Vector3(particleSimulation.transform.position.x, brushPosition.y, brushPosition.z), Vector3.right, brushSize);
 
                 Handles.color = Color.green * 0.5f;
                 Handles.DrawDottedLine(brushPosition, new Vector3(brushPosition.x, 0, brushPosition.z), 1);
-                Handles.DrawWireDisc(new Vector3(brushPosition.x, 0, brushPosition.z), Vector3.up, brushSize);
+                Handles.DrawWireDisc(new Vector3(brushPosition.x, particleSimulation.transform.position.y, brushPosition.z), Vector3.up, brushSize);
 
                 Handles.color = Color.red * 0.5f;
                 Handles.DrawDottedLine(brushPosition, new Vector3(brushPosition.x, brushPosition.y, 0), 1);
-                Handles.DrawWireDisc(new Vector3(brushPosition.x, brushPosition.y, 0), Vector3.forward, brushSize);
+                Handles.DrawWireDisc(new Vector3(brushPosition.x, brushPosition.y, particleSimulation.transform.position.z), Vector3.forward, brushSize);
             }
             else
             {

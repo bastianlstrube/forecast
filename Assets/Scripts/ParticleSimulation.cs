@@ -425,6 +425,8 @@ public class ParticleSimulation : MonoBehaviour {
             vectorMaterial.SetFloat("_PaintBrushSize", flowpainterBrushSize);
             vectorMaterial.SetFloat("_PaintSourceDistance", flowpainterBrushDistance);
             vectorMaterial.SetBuffer("buf_Points", meshPointsBuffer);
+            vectorMaterial.SetVector("_worldPos", transform.position);
+            vectorMaterial.SetVector("_localScale", transform.localScale);
 
             Graphics.DrawProcedural(MeshTopology.Lines, meshPointsBuffer.count);
         }
