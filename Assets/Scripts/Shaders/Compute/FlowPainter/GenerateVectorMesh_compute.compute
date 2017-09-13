@@ -1,4 +1,4 @@
-﻿#pragma kernel CreateVectorMesh
+﻿#pragma kernel GenerateVectorMesh
 
 #define threads_per_group_x 8
 #define threads_per_group_y 8
@@ -22,7 +22,7 @@ float brushSize;
 float3 brushPosition;
 
 [numthreads(threads_per_group_x, threads_per_group_y, threads_per_group_z)]
-void CreateVectorMesh(uint3 dispatchID : SV_DispatchThreadID)
+void GenerateVectorMesh(uint3 dispatchID : SV_DispatchThreadID)
 {
 	// calculate total threads in the each dimension of whole box volume
 	int totalThreadsX = threads_per_group_x * numThreadGroupsX;

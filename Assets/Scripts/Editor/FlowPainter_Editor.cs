@@ -1,5 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.IO;
 using UnityEngine;
 using UnityEditor;
 using Utility;
@@ -27,7 +29,7 @@ public class FlowPainter_Editor : EditorWindow {
 
     private bool checkAction = false;
     private bool unsaved = false;
-
+    private bool erasing = false;
 
 
     [MenuItem("Window/Flow Painter")]
@@ -46,188 +48,195 @@ public class FlowPainter_Editor : EditorWindow {
 
     void OnGUI()
     {
-        
-
-        if (checkAction)
+        if (EditorApplication.isPlaying)
         {
-            GUILayout.Label("There are unsaved changes. Proceed?");
 
-            GUILayout.BeginHorizontal(GUIStyle.none);
-            if (GUILayout.Button("No"))
+            if (checkAction)
             {
-                checkAction = false;
-            }
-            if (GUILayout.Button("Yes"))
-            {
-                checkAction = false;
-                ClearFlow();
-            }
-        }
-        else
-        {
-            if (unsaved)
-            {
-                GUILayout.Label("Flow01.flo *");
-            } else
-            {
-                GUILayout.Label("Flow01.flo  ");
-            }
+                GUILayout.Label("There are unsaved changes. Proceed?");
 
-            GUILayout.BeginHorizontal(GUIStyle.none);
-            if (GUILayout.Button("Clear Flow"))
-            {
-                if(unsaved)
-                    checkAction = true;
-                else
+                GUILayout.BeginHorizontal(GUIStyle.none);
+                if (GUILayout.Button("No"))
+                {
+                    checkAction = false;
+                }
+                if (GUILayout.Button("Yes"))
+                {
+                    checkAction = false;
                     ClearFlow();
+                }
             }
-            
-
-            if (GUILayout.Button("Save  "))
+            else
             {
                 if (unsaved)
                 {
-                    Debug.Log("Flow saved to C:/fjkohfa/flow01.flo");
-                    unsaved = false;
+                    GUILayout.Label("Flow01.flo *");
                 }
                 else
                 {
-                    Debug.Log("No flow changes to save");
+                    GUILayout.Label("Flow01.flo  ");
                 }
-            }
-            if (GUILayout.Button("Save As..."))
-            {
-                if (unsaved)
+
+                GUILayout.BeginHorizontal(GUIStyle.none);
+                if (GUILayout.Button("Clear Flow"))
                 {
-                    Debug.Log("Flow saved to C:/fjkohfa/flow01.flo");
-                    unsaved = false;
+                    if (unsaved)
+                        checkAction = true;
+                    else
+                        ClearFlow();
                 }
-                else
+
+
+                if (GUILayout.Button("Save  "))
                 {
-                    Debug.Log("No flow changes to save");
+                    if (unsaved)
+                    {
+                        Debug.Log("Flow saved to C:/fjkohfa/flow01.flo");
+                        unsaved = false;
+                    }
+                    else
+                    {
+                        Debug.Log("No flow changes to save");
+                    }
+                }
+                if (GUILayout.Button("Save As..."))
+                {
+                    if (unsaved)
+                    {
+                        SaveFlow(true);
+                        unsaved = false;
+                    }
+                    else
+                    {
+                        Debug.Log("No flow changes to save");
+                    }
+                }
+
+                if (GUILayout.Button("Load..."))
+                {
+                    if (unsaved)
+                        checkAction = true;
+                    else
+                        LoadFlow();
+                }
+
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(15);
+
+            Event e = Event.current;
+            if (e.type == EventType.keyDown)
+            {
+                if (Event.current.keyCode == (KeyCode.P))
+                {
+                    painting = !painting;
                 }
             }
 
-            if (GUILayout.Button("Load..."))
+            if (painting == false)
             {
-                if (unsaved)
-                    checkAction = true;
-                else
-                    LoadFlow();
+                if (GUILayout.Button("Start Painting (p)"))
+                {
+                    painting = true;
+                }
+            }
+            else
+            {
+                if (GUILayout.Button("Stop Painting (p)"))
+                {
+                    painting = false;
+                }
             }
 
-        }
-        GUILayout.EndHorizontal();
+            GUIStyle boldText = new GUIStyle();
+            boldText.fontSize = 15;
+            boldText.fontStyle = FontStyle.Bold;
 
-        GUILayout.Space(15);
+            GUIStyle subText = new GUIStyle();
+            subText.fontSize = 8;
+            subText.fontStyle = FontStyle.Italic;
 
-        Event e = Event.current;
-        if (e.type == EventType.keyDown)
-        {
-            if (Event.current.keyCode == (KeyCode.P))
+            GUIStyle centered = new GUIStyle();
+            centered.alignment = TextAnchor.MiddleCenter;
+
+            GUILayout.Space(15);
+
+            GUILayout.BeginArea(new Rect(new Vector2(10f, 100f), new Vector2(170f, 130f)));
+            GUILayout.Label("Tool", boldText);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Toggle(brushType == BrushType.Paint, "Paint (a)"))
             {
-                painting = !painting;
+                brushType = BrushType.Paint;
             }
-        }
-
-        if (painting == false)
-        {
-            if (GUILayout.Button("Start Painting (p)"))
+            if (GUILayout.Toggle(brushType == BrushType.Erase, "Erase (s)"))
             {
-                painting = true;
+                brushType = BrushType.Erase;
             }
-        }
-        else
-        {
-            if (GUILayout.Button("Stop Painting (p)"))
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            GUILayout.Box(paintButtonTexture, GUILayout.Width(75), GUILayout.Height(75));
+            GUILayout.Space(5);
+            GUILayout.Box(eraseButtonTexture, GUILayout.Width(75), GUILayout.Height(75));
+            GUILayout.EndHorizontal();
+            GUILayout.EndArea();
+
+            GUILayout.BeginArea(new Rect(new Vector2(200f, 100f), new Vector2(150f, 300f)));
+
+            GUILayout.Label("Brush Size", boldText);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("(Numpad -)", subText);
+            GUILayout.Space(50);
+            GUILayout.Label("(Numpad +)", subText);
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal(GUIStyle.none);
+            if (GUILayout.Button("-"))
             {
-                painting = false;
+                brushSize -= 0.1f;
             }
-        }
 
-        GUIStyle boldText = new GUIStyle();
-        boldText.fontSize = 15;
-        boldText.fontStyle = FontStyle.Bold;
+            brushSize = float.Parse(GUILayout.TextField(brushSize.ToString()));
 
-        GUIStyle subText = new GUIStyle();
-        subText.fontSize = 8;
-        subText.fontStyle = FontStyle.Italic;
+            if (GUILayout.Button("+"))
+            {
+                brushSize += 0.1f;
+            }
+            GUILayout.EndHorizontal();
 
-        GUIStyle centered = new GUIStyle();
-        centered.alignment = TextAnchor.MiddleCenter;
+            GUILayout.Space(5);
 
-        GUILayout.Space(15);
+            GUILayout.Label("Brush Distance", boldText);
 
-        GUILayout.BeginArea(new Rect(new Vector2(10f, 100f), new Vector2(170f, 130f)));
-        GUILayout.Label("Tool", boldText);
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Toggle(brushType==BrushType.Paint, "Paint (a)"))
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("(Numpad /)", subText);
+            GUILayout.Space(50);
+            GUILayout.Label("(Numpad *)", subText);
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal(GUIStyle.none);
+            if (GUILayout.Button("-"))
+            {
+                brushDistance -= 0.1f;
+            }
+
+            brushDistance = float.Parse(GUILayout.TextField(brushDistance.ToString()));
+
+            if (GUILayout.Button("+"))
+            {
+                brushDistance += 0.1f;
+            }
+            GUILayout.EndHorizontal();
+            GUILayout.EndArea();
+
+
+            GUILayout.Space(15);
+        } else
         {
-            brushType = BrushType.Paint;
+            GUILayout.Label("Enter play mode to edit the flow field");
+
         }
-        if(GUILayout.Toggle(brushType == BrushType.Erase, "Erase (s)"))
-        {
-            brushType = BrushType.Erase;
-        }
-        GUILayout.EndHorizontal();
-        GUILayout.BeginHorizontal();
-        GUILayout.Box(paintButtonTexture, GUILayout.Width(75), GUILayout.Height(75));
-        GUILayout.Space(5);
-        GUILayout.Box(eraseButtonTexture, GUILayout.Width(75), GUILayout.Height(75));
-        GUILayout.EndHorizontal();
-        GUILayout.EndArea();
-
-        GUILayout.BeginArea(new Rect(new Vector2(200f, 100f), new Vector2(150f, 300f)));
-
-        GUILayout.Label("Brush Size", boldText);
-        
-        GUILayout.BeginHorizontal();
-        GUILayout.Label("(Numpad -)", subText);
-        GUILayout.Space(50);
-        GUILayout.Label("(Numpad +)", subText);
-        GUILayout.EndHorizontal();
-
-        GUILayout.BeginHorizontal(GUIStyle.none);
-        if (GUILayout.Button("-"))
-        {
-            brushSize -= 0.1f;
-        }
-
-        brushSize = float.Parse(GUILayout.TextField(brushSize.ToString()));
-
-        if (GUILayout.Button("+"))
-        {
-            brushSize += 0.1f;
-        }
-        GUILayout.EndHorizontal();
-
-        GUILayout.Space(5);
-
-        GUILayout.Label("Brush Distance", boldText);
-
-        GUILayout.BeginHorizontal();
-        GUILayout.Label("(Numpad /)", subText);
-        GUILayout.Space(50);
-        GUILayout.Label("(Numpad *)", subText);
-        GUILayout.EndHorizontal();
-
-        GUILayout.BeginHorizontal(GUIStyle.none);
-        if (GUILayout.Button("-"))
-        {
-            brushDistance -= 0.1f;
-        }
-
-        brushDistance = float.Parse(GUILayout.TextField(brushDistance.ToString()));
-
-        if (GUILayout.Button("+"))
-        {
-            brushDistance += 0.1f;
-        }
-        GUILayout.EndHorizontal();
-        GUILayout.EndArea();
-
-
-        GUILayout.Space(15);
     }
 
     public void Update()
@@ -239,157 +248,169 @@ public class FlowPainter_Editor : EditorWindow {
     void OnSceneGUI(SceneView sceneView)
     {
 
-        if(EditorApplication.isPlaying)
+        if (EditorApplication.isPlaying)
         {
             particleSimulation = GameObject.FindGameObjectWithTag("ParticleSimulation").GetComponent<ParticleSimulation>();
-        }
 
-        Vector3 brushPosition = new Vector3(99999,99999,99999);
+            Vector3 brushPosition = new Vector3(99999, 99999, 99999);
 
-        Event e = Event.current;
-        if (e.type == EventType.keyDown)
-        {
-            switch (Event.current.keyCode)
+            Event e = Event.current;
+            if (e.type == EventType.keyDown)
             {
-                case KeyCode.P:
-                    painting = !painting;
-                    break;
-                case KeyCode.A:
-                    brushType = BrushType.Paint;
-                    break;
-                case KeyCode.S:
-                    brushType = BrushType.Erase;
-                    break;
-                case KeyCode.Plus:
-                case KeyCode.KeypadPlus:
-                    brushSize += 0.1f;
-                    break;
-                case KeyCode.Minus:
-                case KeyCode.KeypadMinus:
-                    brushSize -= 0.1f;
-                    break;
-                case KeyCode.KeypadMultiply:
-                    brushDistance += 0.5f;
-                    break;
-                case KeyCode.KeypadDivide:
-                    brushDistance -= 0.5f;
-                    break;
-                default:
-                    break;
-            }
-        }
-        brushSize = Mathf.Round(brushSize * 10f) / 10f;
-        brushDistance = Mathf.Round(brushDistance * 10f) / 10f;
-        if (brushSize < 0)
-        {
-            brushSize = 0;
-        }
-        if (brushDistance < 0)
-        {
-            brushDistance = 0;
-        }
-
-        Handles.BeginGUI();
-        Handles.Label(Vector3.zero, "");
-
-        if (painting)
-        {
-            HandleUtility.AddDefaultControl(GUIUtility.GetControlID(FocusType.Passive));
-
-            Vector2 position = MouseHelper.Position;
-            Vector3 offset = new Vector3((position.x - sceneView.position.x) / sceneView.position.width, ((sceneView.position.height + sceneView.position.y) - position.y) / sceneView.position.height, 0);
-            Ray ray = sceneView.camera.ViewportPointToRay(offset);
-
-            ray = HandleUtility.GUIPointToWorldRay(Event.current.mousePosition);
-
-            
-            brushPosition = ray.origin + ray.direction.normalized * brushDistance;
-
-            if (e.type == EventType.MouseDrag && !e.alt && e.button == 0)
-            {
-                unsaved = true;
-                if (brushPositionPrev == new Vector3(99999, 99999, 99999))
+                switch (Event.current.keyCode)
                 {
-                    brushPositionPrev = brushPosition;
+                    case KeyCode.P:
+                        painting = !painting;
+                        break;
+                    case KeyCode.A:
+                        brushType = BrushType.Paint;
+                        break;
+                    case KeyCode.S:
+                        brushType = BrushType.Erase;
+                        break;
+                    case KeyCode.Plus:
+                    case KeyCode.KeypadPlus:
+                        brushSize += 0.1f;
+                        break;
+                    case KeyCode.Minus:
+                    case KeyCode.KeypadMinus:
+                        brushSize -= 0.1f;
+                        break;
+                    case KeyCode.KeypadMultiply:
+                        brushDistance += 0.5f;
+                        break;
+                    case KeyCode.KeypadDivide:
+                        brushDistance -= 0.5f;
+                        break;
+                    default:
+                        break;
+                }
+            }
+            brushSize = Mathf.Round(brushSize * 10f) / 10f;
+            brushDistance = Mathf.Round(brushDistance * 10f) / 10f;
+            if (brushSize < 0)
+            {
+                brushSize = 0;
+            }
+            if (brushDistance < 0)
+            {
+                brushDistance = 0;
+            }
+
+            Handles.BeginGUI();
+            Handles.Label(Vector3.zero, "");
+
+            if (painting)
+            {
+                HandleUtility.AddDefaultControl(GUIUtility.GetControlID(FocusType.Passive));
+
+                Vector2 position = MouseHelper.Position;
+                Vector3 offset = new Vector3((position.x - sceneView.position.x) / sceneView.position.width, ((sceneView.position.height + sceneView.position.y) - position.y) / sceneView.position.height, 0);
+                Ray ray = sceneView.camera.ViewportPointToRay(offset);
+
+                ray = HandleUtility.GUIPointToWorldRay(Event.current.mousePosition);
+
+
+                brushPosition = ray.origin + ray.direction.normalized * brushDistance;
+
+                if (e.type == EventType.MouseDrag && !e.alt && e.button == 0)
+                {
+                    unsaved = true;
+                    erasing = false;
+                    if (brushPositionPrev == new Vector3(99999, 99999, 99999))
+                    {
+                        brushPositionPrev = brushPosition;
+                        moveVector = Vector3.zero;
+                    }
+                    else
+                    {
+                        if (brushType == BrushType.Erase)
+                        {
+                            moveVector = Vector3.zero;
+                            erasing = true;
+                        }
+                        else
+                        {
+                            moveVector = (brushPosition - brushPositionPrev).normalized;
+                        }
+                        brushPositionPrev = brushPosition;
+                    }
+                }
+                else if (e.type == EventType.MouseUp)
+                {
+                    brushPositionPrev = new Vector3(99999, 99999, 99999);
                     moveVector = Vector3.zero;
+                    erasing = false;
+
                 }
                 else
                 {
-                    moveVector = (brushPosition - brushPositionPrev).normalized;
-                    brushPositionPrev = brushPosition;
+                    moveVector = Vector3.zero;
                 }
-            } 
-            else if (e.type == EventType.MouseUp)
+
+                if (particleSimulation)
+                {
+                    
+                    particleSimulation.flowpainterSourcePosition = brushPosition;
+                    particleSimulation.flowpainterBrushDistance = brushDistance;
+                    particleSimulation.flowpainterSourceVelocity = moveVector;
+                    particleSimulation.flowpainterBrushSize = brushSize;
+                    particleSimulation.erasing = erasing;
+                }
+
+                if (brushType == BrushType.Paint)
+                {
+                    Handles.color = Color.white;
+                    Handles.DrawWireDisc(brushPosition, ray.direction.normalized, brushSize);
+                    float alphaScale = 0.5f - brushDistance / 20f;
+                    Handles.color = new Color(1, 1, 1, alphaScale);
+
+                    Handles.DrawWireDisc(brushPosition, ray.direction.normalized, brushSize * 1.1f);
+                    Handles.color = Color.red;
+                    Handles.DrawWireDisc(brushPosition, Vector3.up, brushSize);
+                    Handles.color = Color.green;
+                    Handles.DrawWireDisc(brushPosition, Vector3.right, brushSize);
+                    Handles.color = Color.blue;
+                    Handles.DrawWireDisc(brushPosition, Vector3.forward, brushSize);
+                }
+                else if (brushType == BrushType.Erase)
+                {
+                    Handles.color = Color.black;
+                    Handles.DrawWireDisc(brushPosition, ray.direction.normalized, brushSize);
+                    Handles.color = Color.yellow;
+                    Handles.DrawWireDisc(brushPosition, ray.direction.normalized, brushSize + 0.5f);
+
+                    float alphaScale = 0.5f - brushDistance / 20f;
+                    Handles.color = new Color(1, 1, 1, alphaScale);
+
+                    Handles.DrawWireDisc(brushPosition, ray.direction.normalized, brushSize * 1.1f);
+                    Handles.color = Color.red;
+                    Handles.DrawWireDisc(brushPosition, Vector3.up, brushSize);
+                    Handles.color = Color.green;
+                    Handles.DrawWireDisc(brushPosition, Vector3.right, brushSize);
+                    Handles.color = Color.blue;
+                    Handles.DrawWireDisc(brushPosition, Vector3.forward, brushSize);
+                }
+                Handles.color = Color.blue * 0.5f;
+                Handles.DrawDottedLine(brushPosition, new Vector3(0, brushPosition.y, brushPosition.z), 1);
+                Handles.DrawWireDisc(new Vector3(0, brushPosition.y, brushPosition.z), Vector3.right, brushSize);
+
+                Handles.color = Color.green * 0.5f;
+                Handles.DrawDottedLine(brushPosition, new Vector3(brushPosition.x, 0, brushPosition.z), 1);
+                Handles.DrawWireDisc(new Vector3(brushPosition.x, 0, brushPosition.z), Vector3.up, brushSize);
+
+                Handles.color = Color.red * 0.5f;
+                Handles.DrawDottedLine(brushPosition, new Vector3(brushPosition.x, brushPosition.y, 0), 1);
+                Handles.DrawWireDisc(new Vector3(brushPosition.x, brushPosition.y, 0), Vector3.forward, brushSize);
+            }
+            else
             {
-                brushPositionPrev = new Vector3(99999, 99999, 99999);
-                moveVector = Vector3.zero;
-                
-            } else
-            {
-                moveVector = Vector3.zero;
+                //HandleUtility.AddDefaultControl(GUIUtility.GetControlID(FocusType.Passive));
             }
 
-            if (particleSimulation)
-            {
-                particleSimulation.flowpainterSourcePosition = brushPosition;
-                particleSimulation.flowpainterBrushDistance = brushDistance;
-                particleSimulation.flowpainterSourceVelocity = moveVector;
-                particleSimulation.flowpainterBrushSize = brushSize;
-
-                Handles.color = Color.white;
-                Handles.DrawDottedLine(brushPosition, brushPosition + moveVector * 5f, 1);
-            }
-
-            if (brushType == BrushType.Paint)
-            {
-                Handles.color = Color.white;
-                Handles.DrawWireDisc(brushPosition, ray.direction.normalized, brushSize);
-                float alphaScale = 0.5f-brushDistance/20f;
-                Handles.color = new Color(1, 1, 1, alphaScale);
-                
-                Handles.DrawWireDisc(brushPosition, ray.direction.normalized, brushSize * 1.1f);
-                Handles.color = Color.red;
-                Handles.DrawWireDisc(brushPosition, Vector3.up, brushSize);
-                Handles.color = Color.green;
-                Handles.DrawWireDisc(brushPosition, Vector3.right, brushSize);
-                Handles.color = Color.blue;
-                Handles.DrawWireDisc(brushPosition, Vector3.forward, brushSize);
-            } else if (brushType == BrushType.Erase)
-            {
-                Handles.color = Color.black;
-                Handles.DrawWireDisc(brushPosition, ray.direction.normalized, brushSize);
-                Handles.color = Color.yellow;
-                Handles.DrawWireDisc(brushPosition, ray.direction.normalized, brushSize+0.5f);
-
-                float alphaScale = 0.5f - brushDistance / 20f;
-                Handles.color = new Color(1, 1, 1, alphaScale);
-
-                Handles.DrawWireDisc(brushPosition, ray.direction.normalized, brushSize * 1.1f);
-                Handles.color = Color.red;
-                Handles.DrawWireDisc(brushPosition, Vector3.up, brushSize);
-                Handles.color = Color.green;
-                Handles.DrawWireDisc(brushPosition, Vector3.right, brushSize);
-                Handles.color = Color.blue;
-                Handles.DrawWireDisc(brushPosition, Vector3.forward, brushSize);
-            }
-            Handles.color = Color.blue * 0.5f;
-            Handles.DrawDottedLine(brushPosition, new Vector3(0, brushPosition.y, brushPosition.z), 1);
-            Handles.DrawWireDisc(new Vector3(0, brushPosition.y, brushPosition.z), Vector3.right, brushSize);
-
-            Handles.color = Color.green * 0.5f;
-            Handles.DrawDottedLine(brushPosition, new Vector3(brushPosition.x, 0, brushPosition.z), 1);
-            Handles.DrawWireDisc(new Vector3(brushPosition.x, 0, brushPosition.z), Vector3.up, brushSize);
-
-            Handles.color = Color.red * 0.5f;
-            Handles.DrawDottedLine(brushPosition, new Vector3(brushPosition.x, brushPosition.y, 0), 1);
-            Handles.DrawWireDisc(new Vector3(brushPosition.x, brushPosition.y, 0), Vector3.forward, brushSize);
-        } else
-        {
-            //HandleUtility.AddDefaultControl(GUIUtility.GetControlID(FocusType.Passive));
+            Handles.EndGUI();
+            SceneView.RepaintAll();
         }
-
-        Handles.EndGUI();
-        SceneView.RepaintAll();
     }
 
     void OnDestroy()
@@ -400,7 +421,7 @@ public class FlowPainter_Editor : EditorWindow {
     void ClearFlow()
     {
         if(particleSimulation)
-            particleSimulation.InitialiseVectorMap();
+            particleSimulation.InitialiseConstantFlowBuffer();
 
         unsaved = false;
     }
@@ -410,6 +431,15 @@ public class FlowPainter_Editor : EditorWindow {
         unsaved = false;
     }
 
+    void SaveFlow(bool saveAs)
+    {
+        if(saveAs)
+        {
+            string path = EditorUtility.SaveFilePanel("Save Flow As...", "./Assets/Flows","Flow01", "flo");
+            Debug.Log("Saved flow as: "+path);
+        }
+        unsaved = false;
+    }
 }
 
 
