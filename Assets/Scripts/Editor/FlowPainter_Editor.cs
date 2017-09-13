@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
@@ -31,6 +32,9 @@ public class FlowPainter_Editor : EditorWindow {
     private bool unsaved = false;
     private bool erasing = false;
 
+    private string filename;
+    private string persistentFilePath;
+    private bool loading = false;
 
     [MenuItem("Window/Flow Painter")]
     public static void ShowWindow()
@@ -44,6 +48,9 @@ public class FlowPainter_Editor : EditorWindow {
         SceneView.onSceneGUIDelegate += this.OnSceneGUI;
         paintButtonTexture = (Texture)AssetDatabase.LoadAssetAtPath("Assets/Scripts/Editor/Textures/paintBrush.png", typeof(Texture));
         eraseButtonTexture = (Texture)AssetDatabase.LoadAssetAtPath("Assets/Scripts/Editor/Textures/eraseBrush.png", typeof(Texture));
+
+        filename = "New Flow";
+        persistentFilePath = "";
     }
 
     void OnGUI()
@@ -63,18 +70,26 @@ public class FlowPainter_Editor : EditorWindow {
                 if (GUILayout.Button("Yes"))
                 {
                     checkAction = false;
-                    ClearFlow();
+                    if (loading)
+                    {
+                        LoadFlow();
+                        loading = false;
+                    }
+                    else
+                    {
+                        ClearFlow();
+                    }
                 }
             }
             else
             {
                 if (unsaved)
                 {
-                    GUILayout.Label("Flow01.flo *");
+                    GUILayout.Label(filename+" *");
                 }
                 else
                 {
-                    GUILayout.Label("Flow01.flo  ");
+                    GUILayout.Label(filename);
                 }
 
                 GUILayout.BeginHorizontal(GUIStyle.none);
@@ -91,12 +106,12 @@ public class FlowPainter_Editor : EditorWindow {
                 {
                     if (unsaved)
                     {
-                        Debug.Log("Flow saved to C:/fjkohfa/flow01.flo");
+                        SaveFlow(false);
                         unsaved = false;
                     }
                     else
                     {
-                        Debug.Log("No flow changes to save");
+                        Debug.Log("There are no changes to save!");
                     }
                 }
                 if (GUILayout.Button("Save As..."))
@@ -115,9 +130,14 @@ public class FlowPainter_Editor : EditorWindow {
                 if (GUILayout.Button("Load..."))
                 {
                     if (unsaved)
+                    {
                         checkAction = true;
+                        loading = true;
+                    }
                     else
+                    {
                         LoadFlow();
+                    }
                 }
 
             }
@@ -420,7 +440,9 @@ public class FlowPainter_Editor : EditorWindow {
 
     void ClearFlow()
     {
-        if(particleSimulation)
+        persistentFilePath = "";
+        filename = "New Flow";
+        if (particleSimulation)
             particleSimulation.InitialiseConstantFlowBuffer();
 
         unsaved = false;
@@ -428,17 +450,70 @@ public class FlowPainter_Editor : EditorWindow {
 
     void LoadFlow()
     {
-        unsaved = false;
+        string path = EditorUtility.OpenFilePanel("Load Flow...", "./Assets/Flows", "flo");
+        
+        if (File.Exists(path))
+        {
+            EditorUtility.DisplayProgressBar("Loading " + Path.GetFileName(path), "This may take some time", 0f);
+
+            BinaryFormatter bf = new BinaryFormatter();
+            FileStream fileStream = new FileStream(path, FileMode.Open);
+
+            FlowMap flowMap = bf.Deserialize(fileStream) as FlowMap;
+
+            fileStream.Close();
+
+            particleSimulation.SetFlowMap(flowMap.DeserializeFlowMap(), flowMap.mapSizeX, flowMap.mapSizeY, flowMap.mapSizeZ);
+            filename = Path.GetFileName(path);
+            persistentFilePath = path;
+            unsaved = false;
+
+            EditorUtility.ClearProgressBar();
+        } else
+        {
+            Debug.Log("File does not exist!");
+        }
     }
 
     void SaveFlow(bool saveAs)
     {
-        if(saveAs)
+        if (saveAs)
         {
-            string path = EditorUtility.SaveFilePanel("Save Flow As...", "./Assets/Flows","Flow01", "flo");
-            Debug.Log("Saved flow as: "+path);
+            string path = EditorUtility.SaveFilePanel("Save Flow As...", "./Assets/Flows", "", "flo");
+            persistentFilePath = path;
+            if (path != "")
+            {
+                FlowMap flowMap = new FlowMap(particleSimulation.GetFlowMap(), particleSimulation.velocityBoxSize.x, particleSimulation.velocityBoxSize.y, particleSimulation.velocityBoxSize.z);
+
+                BinaryFormatter bf = new BinaryFormatter();
+                FileStream fileStream = new FileStream(path, FileMode.Create);
+
+                bf.Serialize(fileStream, flowMap);
+                fileStream.Close();
+
+                Debug.Log("Saved flow as: " + path);
+                filename = Path.GetFileName(path);
+                unsaved = false;
+            }
+        } else
+        {
+            if (persistentFilePath != "")
+            {
+                Debug.Log(persistentFilePath);
+                FlowMap flowMap = new FlowMap(particleSimulation.GetFlowMap(), particleSimulation.velocityBoxSize.x, particleSimulation.velocityBoxSize.y, particleSimulation.velocityBoxSize.z);
+
+                BinaryFormatter bf = new BinaryFormatter();
+                FileStream fileStream = new FileStream(persistentFilePath, FileMode.Create);
+
+                bf.Serialize(fileStream, flowMap);
+                fileStream.Close();
+
+                Debug.Log("Saved flow: " + persistentFilePath);
+                filename = Path.GetFileName(persistentFilePath);
+                unsaved = false;
+            }
         }
-        unsaved = false;
+        
     }
 }
 
@@ -471,3 +546,57 @@ namespace Utility
         }
     }
 }
+
+
+[Serializable]
+public class FlowMap
+{
+    public int mapSizeX, mapSizeY, mapSizeZ;
+
+    public Vector3Serializer[] flowMap;
+
+    public FlowMap(Vector3[] _flowMap, int _mapSizeX, int _mapSizeY, int _mapSizeZ)
+    {
+        mapSizeX = _mapSizeX;
+        mapSizeY = _mapSizeY;
+        mapSizeZ = _mapSizeZ;
+
+        flowMap = new Vector3Serializer[mapSizeX * mapSizeY * mapSizeZ];
+
+        for (int i = 0; i < mapSizeX * mapSizeY * mapSizeZ; i++)
+        {
+            flowMap[i].Fill(_flowMap[i]);
+        }
+    }
+
+    public Vector3[] DeserializeFlowMap()
+    {
+        Vector3[] vectorFlowMap = new Vector3[mapSizeX * mapSizeY * mapSizeZ];
+
+        for (int i = 0; i < mapSizeX * mapSizeY * mapSizeZ; i++)
+        {
+            vectorFlowMap[i] = new Vector3(flowMap[i].x, flowMap[i].y, flowMap[i].z);
+        }
+
+        return vectorFlowMap;
+    }
+
+    [Serializable]
+    public struct Vector3Serializer
+    {
+        public float x;
+        public float y;
+        public float z;
+
+        public void Fill(Vector3 v3)
+        {
+            x = v3.x;
+            y = v3.y;
+            z = v3.z;
+        }
+
+        public Vector3 V3
+        { get { return new Vector3(x, y, z); } }
+    }
+}
+
