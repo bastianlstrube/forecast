@@ -363,6 +363,24 @@ public class ParticleSimulation : MonoBehaviour {
         resetRealtimeFlowMap_compute.Dispatch(resetRealtimeFlowMap_kernel, velocityBoxSize.x / 8, velocityBoxSize.y / 8, velocityBoxSize.z / 8);
     }
 
+    public Vector3[] GetFlowMap()
+    {
+
+        Vector3[] flowMap = new Vector3[velocityBoxSize.x * velocityBoxSize.y * velocityBoxSize.z];
+        constantFlowBuffer.GetData(flowMap);
+
+        return flowMap;
+    }
+
+    public void SetFlowMap(Vector3[] flowMap, int mapSizeX, int mapSizeY, int mapSizeZ)
+    {
+        velocityBoxSize.x = mapSizeX;
+        velocityBoxSize.y = mapSizeY;
+        velocityBoxSize.z = mapSizeZ;
+
+        constantFlowBuffer.SetData(flowMap);
+    }
+
     /*********************************************/
     /*********************************************/
     /**************** UPDATE *********************/
