@@ -48,6 +48,7 @@ public class FlowPainter_Editor : EditorWindow {
         SceneView.onSceneGUIDelegate += this.OnSceneGUI;
         paintButtonTexture = (Texture)AssetDatabase.LoadAssetAtPath("Assets/Scripts/Editor/Textures/paintBrush.png", typeof(Texture));
         eraseButtonTexture = (Texture)AssetDatabase.LoadAssetAtPath("Assets/Scripts/Editor/Textures/eraseBrush.png", typeof(Texture));
+        unsaved = false;
 
         filename = "New Flow";
         persistentFilePath = "";
@@ -102,7 +103,7 @@ public class FlowPainter_Editor : EditorWindow {
                 }
 
 
-                if (GUILayout.Button("Save  "))
+                if (GUILayout.Button("Save"))
                 {
                     if (unsaved)
                     {

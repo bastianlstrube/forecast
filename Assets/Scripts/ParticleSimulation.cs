@@ -159,6 +159,8 @@ public class ParticleSimulation : MonoBehaviour {
     {
         // calculate box volume
         boxVolume = velocityBoxSize.x * velocityBoxSize.y * velocityBoxSize.z;
+
+        
         numAffectors = velocityAffectorsCurrent.Length;
 
         // initialise materials
@@ -177,14 +179,16 @@ public class ParticleSimulation : MonoBehaviour {
         constantFlowBuffer = new ComputeBuffer(boxVolume, sizeof(float) * 3);
         realtimeFlowBuffer = new ComputeBuffer(boxVolume, sizeof(float) * 3);
         realtimeFlowBufferPrev = new ComputeBuffer(boxVolume, sizeof(float) * 3);
-        velocitySourcesBuffer = new ComputeBuffer(numAffectors, sizeof(float) * 6);
+        if(numAffectors > 0)
+            velocitySourcesBuffer = new ComputeBuffer(numAffectors, sizeof(float) * 6);
         particleBuffer = new ComputeBuffer(numParticles, (sizeof(float) * 3) * 3 + (sizeof(float) * 4) + (sizeof(float)) * 4);
         meshPointsBuffer = new ComputeBuffer(boxVolume * 2, sizeof(float) * 3 + sizeof(float) * 4);
 
         InitialiseConstantFlowBuffer();
         InitialiseParticles();
         InitialiseRealtimeFlowBuffer();
-        InitialiseVelocitySourcesBuffer();
+        if (numAffectors > 0)
+            InitialiseVelocitySourcesBuffer();
     }
 
     public void InitialiseConstantFlowBuffer()
@@ -389,11 +393,14 @@ public class ParticleSimulation : MonoBehaviour {
 
     private void Update()
     {
-        ResetRealtimeFlowMapBuffer();
+        if (numAffectors > 0)
+            ResetRealtimeFlowMapBuffer();
 
-        UpdateVelocitySourcesBuffer();
+        if (numAffectors > 0)
+            UpdateVelocitySourcesBuffer();
 
-        GenerateFlowMap();
+        if (numAffectors > 0)
+            GenerateFlowMap();
         
         MoveParticles();
 
@@ -438,7 +445,9 @@ public class ParticleSimulation : MonoBehaviour {
         constantFlowBuffer.Release();
         particleBuffer.Release();
         meshPointsBuffer.Release();
-        velocitySourcesBuffer.Release();
+        if (numAffectors > 0)
+            velocitySourcesBuffer.Release();
+
         realtimeFlowBuffer.Release();
         realtimeFlowBufferPrev.Release();
 
@@ -447,7 +456,7 @@ public class ParticleSimulation : MonoBehaviour {
     }
 
 
-    void OnDrawGizmosSelected()
+    void OnDrawGizmos()
     {
         Gizmos.color = new Color(1, 0, 0, 0.5F);
         Vector3 cube = new Vector3(velocityBoxSize.x * transform.localScale.x, velocityBoxSize.y * transform.localScale.y, velocityBoxSize.z * transform.localScale.z);
