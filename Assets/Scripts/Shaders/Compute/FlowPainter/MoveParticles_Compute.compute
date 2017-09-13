@@ -20,6 +20,8 @@ struct particle
 	float3 spawnPosition;
 	float drag;
 	float velocity;
+	float baseVelocity;
+	float scale;
 };
 
 StructuredBuffer<float3> flowBuffer;			// array of vectors
