@@ -41,7 +41,7 @@ internal sealed class CustomAssetImporter : AssetPostprocessor {
 
         importer.compressionQuality = 100;
 
-        if( fileName.Contains("normal") ) {
+        if( fileName.Contains("_normal") || fileName.Contains("_nmp") ) {
             importer.textureType = TextureImporterType.NormalMap;
         }
         

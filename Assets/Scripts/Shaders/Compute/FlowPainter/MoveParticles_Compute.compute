@@ -1,4 +1,4 @@
-﻿#pragma kernel AdvectParticles
+﻿#pragma kernel MoveParticles
 
 #define threads_per_group_x 8
 #define threads_per_group_y 8
@@ -7,6 +7,7 @@
 #define findID(mapX, mapY, mapZ) (mapX + totalThreadsX * (mapY + totalThreadsY * mapZ))
 
 float timeStep;
+float currentTime;
 
 // struct representing the data of a single particle
 struct particle
@@ -22,6 +23,7 @@ struct particle
 };
 
 StructuredBuffer<float3> flowBuffer;			// array of vectors
+StructuredBuffer<float3> realtimeFlowMapBuffer;
 RWStructuredBuffer<particle> particleBuffer;	// array of particles
 
 int numThreadGroupsX;	// total number of thread groups
@@ -37,10 +39,22 @@ SamplerState _PointRepeat;
 
 float drag;
 
+float2 fold;
+float2 translate;
+float scale;
+
 int velocityAlpha;
 
+float3 hsv(float h, float s, float v) {
+	return lerp(float3(1.0f, 1.0f, 1.0f), clamp((abs(frac(h + float3(3.0f, 2.0f, 1.0f) / 3.0f)*6.0f - 3.0f) - 1.0f), 0.0f, 1.0f), s)*v;
+}
+
+float2 rotate(float2 p, float a) {
+	return float2(p.x*cos(a) - p.y*sin(a), p.x*sin(a) + p.y*cos(a));
+}
+
 [numthreads(512, 1, 1)]
-void AdvectParticles(uint3 dispatchID : SV_DispatchThreadID)
+void MoveParticles(uint3 dispatchID : SV_DispatchThreadID)
 {
 	// calculate total threads in the each dimension of whole box volume
 	int totalThreadsX = threads_per_group_x * numThreadGroupsX;
@@ -77,9 +91,22 @@ void AdvectParticles(uint3 dispatchID : SV_DispatchThreadID)
 		flowBuffer[findID(topX, topY, bottomZ)] * x * y * (1 - z) +
 		flowBuffer[findID(topX, topY, topZ)] * x * y * z;
 
-	particleBuffer[particleID].velocity = value.x * value.x + value.y * value.y + value.z * value.z;
+	float velocity = value.x * value.x + value.y * value.y + value.z * value.z;
 
-	particleBuffer[particleID].direction += value;
+	float3 value2 = realtimeFlowMapBuffer[findID(bottomX, bottomY, bottomZ)] * (1 - x) * (1 - y) * (1 - z) +
+		realtimeFlowMapBuffer[findID(topX, bottomY, bottomZ)] * x * (1 - y) * (1 - z) +
+		realtimeFlowMapBuffer[findID(bottomX, topY, bottomZ)] * (1 - x) * y * (1 - z) +
+		realtimeFlowMapBuffer[findID(bottomX, bottomY, topZ)] * (1 - x) * (1 - y) * z +
+		realtimeFlowMapBuffer[findID(topX, bottomY, topZ)] * x * (1 - y) * z +
+		realtimeFlowMapBuffer[findID(bottomX, topY, topZ)] * (1 - x) * y * z +
+		realtimeFlowMapBuffer[findID(topX, topY, bottomZ)] * x * y * (1 - z) +
+		realtimeFlowMapBuffer[findID(topX, topY, topZ)] * x * y * z;
+
+	float velocity2 = value2.x * value2.x + value2.y * value2.y + value2.z * value2.z;
+
+	particleBuffer[particleID].velocity += (velocity+velocity2) * 0.1f;
+
+	particleBuffer[particleID].direction += value + value2;
 	particleBuffer[particleID].velocity *= drag;
 	//particleBuffer[particleID].velocity *= particleBuffer[particleID].drag;
 
@@ -97,6 +124,28 @@ void AdvectParticles(uint3 dispatchID : SV_DispatchThreadID)
 
 	particleBuffer[particleID].color = float4(1.0f, 1.0f, 1.0f, 1.0f);
 	particleBuffer[particleID].color = float4(scaledPosition.x, scaledPosition.y, scaledPosition.z, (1 - percentOfLifespan)*alphaScale);
+	
+
+	/*PERSIAN CARPET*/
+
+	float2 p = -5.0 + 10.0*scaledPosition.xy;
+	p.x *= velocityBoxSize.x / velocityBoxSize.y;
+	p *= 0.003f;
+	float px = p.y;
+	p = abs((p%8.0f) - 4.0f);
+
+	for (int i = 0; i < 36; i++)
+	{
+		p = abs(p - fold) + fold;
+		p = p*scale - translate;
+		p = rotate(p, 3.14159f / (8.0f + sin(currentTime*0.001f + float(i)*0.1f)*0.5f + 0.5f));
+	}
+
+	float j = px*10.0 + atan2(p.x, p.y) + currentTime*0.5f;
+	float h = floor(j*6.0f) / 5.0f + 0.07f;
+	h += smoothstep(0.0f, 0.4f, (j*6.0f / 5.0f)%(1.0f / 5.0f)*5.0f) / 5.0f - 0.5f;
+	particleBuffer[particleID].color = float4(hsv(h, 1.0, smoothstep(-1.0, 3.0, length(p))), 1.0f);
 
 	particleBuffer[particleID].position += particleBuffer[particleID].direction * particleBuffer[particleID].velocity;
 }
+

@@ -1,0 +1,4 @@
+This file contains postprocessing settings which can be seen in action on this pack's Asset Store page.
+It is used with Post Processing Stack, a free extension published by Unity: https://www.assetstore.unity3d.com/en/#!/content/83912
+To achieve the same visuals as in the screenshots simply import Post Processing Stack, apply Post Processing Behaviour
+script to your camera and select this Post-Processing Profile in the inspector.

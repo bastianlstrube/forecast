@@ -63,14 +63,27 @@ public class ParticleSimulation : MonoBehaviour {
         }
     }
 
+    public struct Affector
+    {
+        public Vector3 position;
+        public Vector3 velocity;
+
+        public Affector(Vector3 _position, Vector3 _velocity)
+        {
+            position = _position;
+            velocity = _velocity;
+        }
+    }
+
     [Header("Compute Shaders")]
     // Push the particles around
-    public ComputeShader advectParticlesComputeShader;
-
-    public ComputeShader flowPainterComputeShader;
+    public ComputeShader moveParticles_compute;
+    public ComputeShader evaluateVelocitySources_compute;
+    public ComputeShader paintFlow_compute;
+    public ComputeShader resetRealtimeFlowMap_compute;
 
     // Used for debugging the fluid vector field
-    public ComputeShader vectorMeshComputeShader;
+    public ComputeShader generateVectorMesh_compute;
 
     [Header("Surface Shaders")]
     public Shader particleSurfaceShader;    // billboard particle shader
@@ -97,15 +110,31 @@ public class ParticleSimulation : MonoBehaviour {
     public Color globalTint = Color.white;
     public bool useVelocityAlpha = false;
 
+    [Space(10.0f)]
+    [Header("Color Fractals")]
+    public Vector2 fold = new Vector2(0.5f, -0.5f);
+    public Vector2 translate = new Vector2(1.5f, 1.5f);
+    public float scale = 1.3f;
+
+    [Space(10.0f)]
+    [Header("Velocity Affectors")]
+    public Transform[] velocityAffectorsCurrent;
+    private Affector[] velocityAffectorsPrev;
+
     // Buffers for storing data in the compute buffer
-    private ComputeBuffer flowMapBuffer;
+    private ComputeBuffer constantFlowBuffer;
     private ComputeBuffer particleBuffer;
     private ComputeBuffer meshPointsBuffer;
+    private ComputeBuffer realtimeFlowBuffer;
+    private ComputeBuffer realtimeFlowBufferPrev;
+    private ComputeBuffer velocitySourcesBuffer;
 
     // kernels
-    private int advectParticleKernel;
-    private int flowPainterKernel;
-    private int meshComputeKernel;
+    private int moveParticles_kernel;
+    private int paintFlow_kernel;
+    private int generateVectorMesh_kernel;
+    private int evaluateVelocitySources_kernel;
+    private int resetRealtimeFlowMap_kernel;
 
     // materials
     private Material vectorMaterial;  // vector material created from the vector shader
@@ -113,6 +142,7 @@ public class ParticleSimulation : MonoBehaviour {
 
     // Other variables
     private int boxVolume;          // volume of the box, calculated at runtime from side length
+    private int numAffectors;
 
     [HideInInspector]
     public Vector3 flowpainterSourcePosition = Vector3.zero;
@@ -122,35 +152,44 @@ public class ParticleSimulation : MonoBehaviour {
     public Vector3 flowpainterSourceVelocity = Vector3.zero;
     [HideInInspector]
     public float flowpainterBrushSize = 1f;
+    [HideInInspector]
+    public bool erasing = false;
 
     void Start()
     {
-
         // calculate box volume
         boxVolume = velocityBoxSize.x * velocityBoxSize.y * velocityBoxSize.z;
+        numAffectors = velocityAffectorsCurrent.Length;
 
         // initialise materials
         vectorMaterial = new Material(vectorSurfaceShader);
         particleMaterial = new Material(particleSurfaceShader);
 
         // find the compute shader's "main" function and store it
-        advectParticleKernel = advectParticlesComputeShader.FindKernel("AdvectParticles");
-        meshComputeKernel = vectorMeshComputeShader.FindKernel("CreateVectorMesh");
-        flowPainterKernel = flowPainterComputeShader.FindKernel("PaintFlow");
+        moveParticles_kernel = moveParticles_compute.FindKernel("MoveParticles");
+        generateVectorMesh_kernel = generateVectorMesh_compute.FindKernel("GenerateVectorMesh");
+        paintFlow_kernel = paintFlow_compute.FindKernel("PaintFlow");
+        evaluateVelocitySources_kernel = evaluateVelocitySources_compute.FindKernel("EvaluateVelocitySources");
+        resetRealtimeFlowMap_kernel = resetRealtimeFlowMap_compute.FindKernel("ResetRealtimeFlowMap");
 
         // create 1 dimensional buffer of float3's with a length of the box volume
         // this stores the particles' positions and colours
-        flowMapBuffer = new ComputeBuffer(boxVolume, sizeof(float) * 3);
+        constantFlowBuffer = new ComputeBuffer(boxVolume, sizeof(float) * 3);
+        realtimeFlowBuffer = new ComputeBuffer(boxVolume, sizeof(float) * 3);
+        realtimeFlowBufferPrev = new ComputeBuffer(boxVolume, sizeof(float) * 3);
+        velocitySourcesBuffer = new ComputeBuffer(numAffectors, sizeof(float) * 6);
         particleBuffer = new ComputeBuffer(numParticles, (sizeof(float) * 3) * 3 + (sizeof(float) * 4) + (sizeof(float)) * 4);
         meshPointsBuffer = new ComputeBuffer(boxVolume * 2, sizeof(float) * 3 + sizeof(float) * 4);
 
-        InitialiseVectorMap();
+        InitialiseConstantFlowBuffer();
         InitialiseParticles();
+        InitialiseRealtimeFlowBuffer();
+        InitialiseVelocitySourcesBuffer();
     }
 
-    void InitialiseVectorMap()
+    public void InitialiseConstantFlowBuffer()
     {
-        Vector3[] flowMap = new Vector3[boxVolume];
+        Vector3[] constantFlowMap = new Vector3[boxVolume];
         for (int i = 0; i < boxVolume; i++)
         {
             if (useRandomStartVelocities)
@@ -166,7 +205,7 @@ public class ParticleSimulation : MonoBehaviour {
                 //zVelocity = 0f;
 
                 //flowMap[i] = new Vector3(xVelocity * 0.05f, yVelocity * 0.05f, zVelocity * 0.05f);
-                flowMap[i] = Vector3.zero;
+
                 //flowMap[i] = new Vector3(Random.Range(-0.05f, 0.05f), Random.Range(-0.05f, 0.05f), Random.Range(-0.05f, 0.05f)).normalized;
 
                 /*
@@ -181,14 +220,27 @@ public class ParticleSimulation : MonoBehaviour {
                     flowMap[i] = new Vector3(Random.Range(0, (zPosition - velocityBoxSize.x / 2.0f) * 0.005f), Random.Range(-0.5f, 0.5f), Random.Range(-0.5f, 0.5f));
                 }
                 */
+
+                constantFlowMap[i] = Vector3.zero;
             }
             else
             {
-                flowMap[i] = Vector3.zero;
+                constantFlowMap[i] = Vector3.zero;
             }
         }
 
-        flowMapBuffer.SetData(flowMap);
+        constantFlowBuffer.SetData(constantFlowMap);
+    }
+
+    public void InitialiseRealtimeFlowBuffer()
+    {
+        Vector3[] realtimeFlowMap = new Vector3[boxVolume];
+        for (int i = 0; i < boxVolume; i++)
+        {
+            realtimeFlowMap[i] = Vector3.zero;
+        }
+        realtimeFlowBuffer.SetData(realtimeFlowMap);
+        realtimeFlowBufferPrev.SetData(realtimeFlowMap);
     }
 
     void InitialiseParticles()
@@ -205,69 +257,132 @@ public class ParticleSimulation : MonoBehaviour {
         particleBuffer.SetData(particleMap);
     }
 
-    void AdvectParticles()
+    void InitialiseVelocitySourcesBuffer()
     {
-        advectParticlesComputeShader.SetBuffer(advectParticleKernel, "flowBuffer", flowMapBuffer);
-        advectParticlesComputeShader.SetBuffer(advectParticleKernel, "particleBuffer", particleBuffer);
-        advectParticlesComputeShader.SetInt("numThreadGroupsX", velocityBoxSize.x / 8);
-        advectParticlesComputeShader.SetInt("numThreadGroupsY", velocityBoxSize.y / 8);
-        advectParticlesComputeShader.SetInt("numThreadGroupsZ", velocityBoxSize.z / 8);
-        advectParticlesComputeShader.SetFloat("drag", drag);
-        if (useVelocityAlpha)
-            advectParticlesComputeShader.SetInt("velocityAlpha", 0);
-        else
-            advectParticlesComputeShader.SetInt("velocityAlpha", 1);
-        advectParticlesComputeShader.SetFloat("timeStep", Time.deltaTime);
+        velocityAffectorsPrev = new Affector[numAffectors];
+        for (int i = 0; i < numAffectors; i++)
+        {
+            velocityAffectorsPrev[i].position = velocityAffectorsCurrent[i].position;
+            velocityAffectorsPrev[i].velocity = Vector3.zero;
+        }
+        velocitySourcesBuffer.SetData(velocityAffectorsPrev);
+    }
 
-        advectParticlesComputeShader.SetVector("velocityBoxSize", new Vector3(velocityBoxSize.x * transform.localScale.x, velocityBoxSize.y * transform.localScale.y, velocityBoxSize.z * transform.localScale.z));
-        advectParticlesComputeShader.Dispatch(advectParticleKernel, numParticles / 512, 1, 1);
+    void MoveParticles()
+    {
+        moveParticles_compute.SetBuffer(moveParticles_kernel, "flowBuffer", constantFlowBuffer);
+        moveParticles_compute.SetBuffer(moveParticles_kernel, "particleBuffer", particleBuffer);
+        moveParticles_compute.SetBuffer(moveParticles_kernel, "realtimeFlowMapBuffer", realtimeFlowBuffer);
+        moveParticles_compute.SetInt("numThreadGroupsX", velocityBoxSize.x / 8);
+        moveParticles_compute.SetInt("numThreadGroupsY", velocityBoxSize.y / 8);
+        moveParticles_compute.SetInt("numThreadGroupsZ", velocityBoxSize.z / 8);
+        moveParticles_compute.SetFloat("drag", drag);
+        if (useVelocityAlpha)
+            moveParticles_compute.SetInt("velocityAlpha", 0);
+        else
+            moveParticles_compute.SetInt("velocityAlpha", 1);
+        moveParticles_compute.SetFloat("timeStep", Time.deltaTime);
+        moveParticles_compute.SetFloat("currentTime", Time.time);
+
+        moveParticles_compute.SetVector("fold", fold);
+        moveParticles_compute.SetVector("translate", translate);
+        moveParticles_compute.SetFloat("scale", scale);
+
+        moveParticles_compute.SetVector("velocityBoxSize", new Vector3(velocityBoxSize.x * transform.localScale.x, velocityBoxSize.y * transform.localScale.y, velocityBoxSize.z * transform.localScale.z));
+        moveParticles_compute.Dispatch(moveParticles_kernel, numParticles / 512, 1, 1);
 
     }
 
     void DrawVelocityVectors()
     {
-        vectorMeshComputeShader.SetBuffer(meshComputeKernel, "vectorMapBuffer", flowMapBuffer);
-        vectorMeshComputeShader.SetBuffer(meshComputeKernel, "meshPointBuffer", meshPointsBuffer);
-        vectorMeshComputeShader.SetInt("numThreadGroupsX", velocityBoxSize.x / 8);
-        vectorMeshComputeShader.SetInt("numThreadGroupsY", velocityBoxSize.y / 8);
-        vectorMeshComputeShader.SetInt("numThreadGroupsZ", velocityBoxSize.z / 8);
-        vectorMeshComputeShader.SetVector("brushPosition", flowpainterSourcePosition);
-        vectorMeshComputeShader.SetFloat("brushSize", flowpainterBrushSize);
-        vectorMeshComputeShader.Dispatch(meshComputeKernel, velocityBoxSize.x / 8, velocityBoxSize.y / 8, velocityBoxSize.z / 8);
+        generateVectorMesh_compute.SetBuffer(generateVectorMesh_kernel, "vectorMapBuffer", constantFlowBuffer);
+        generateVectorMesh_compute.SetBuffer(generateVectorMesh_kernel, "meshPointBuffer", meshPointsBuffer);
+        generateVectorMesh_compute.SetInt("numThreadGroupsX", velocityBoxSize.x / 8);
+        generateVectorMesh_compute.SetInt("numThreadGroupsY", velocityBoxSize.y / 8);
+        generateVectorMesh_compute.SetInt("numThreadGroupsZ", velocityBoxSize.z / 8);
+        generateVectorMesh_compute.SetVector("brushPosition", flowpainterSourcePosition);
+        generateVectorMesh_compute.SetFloat("brushSize", flowpainterBrushSize);
+        generateVectorMesh_compute.Dispatch(generateVectorMesh_kernel, velocityBoxSize.x / 8, velocityBoxSize.y / 8, velocityBoxSize.z / 8);
     }
 
     void PaintFlow()
     {
-        flowPainterComputeShader.SetVector("worldPos", transform.position);
-        flowPainterComputeShader.SetVector("worldScale", transform.localScale);
-        flowPainterComputeShader.SetInt("numThreadGroupsX", velocityBoxSize.x / 8);
-        flowPainterComputeShader.SetInt("numThreadGroupsY", velocityBoxSize.y / 8);
-        flowPainterComputeShader.SetInt("numThreadGroupsZ", velocityBoxSize.z / 8);
-        flowPainterComputeShader.SetFloat("timeStep", Time.deltaTime);
-        flowPainterComputeShader.SetFloat("sourceSize", flowpainterBrushSize);
-        flowPainterComputeShader.SetVector("sourcePosition", flowpainterSourcePosition);
-        flowPainterComputeShader.SetVector("sourceVelocity", flowpainterSourceVelocity);
-        if (flowpainterSourceVelocity.magnitude > 0)
-            flowPainterComputeShader.SetBool("painting", true);
+        paintFlow_compute.SetVector("worldPos", transform.position);
+        paintFlow_compute.SetVector("worldScale", transform.localScale);
+        paintFlow_compute.SetInt("numThreadGroupsX", velocityBoxSize.x / 8);
+        paintFlow_compute.SetInt("numThreadGroupsY", velocityBoxSize.y / 8);
+        paintFlow_compute.SetInt("numThreadGroupsZ", velocityBoxSize.z / 8);
+        paintFlow_compute.SetFloat("timeStep", Time.deltaTime);
+        paintFlow_compute.SetFloat("sourceSize", flowpainterBrushSize);
+        paintFlow_compute.SetVector("sourcePosition", flowpainterSourcePosition);
+        paintFlow_compute.SetVector("sourceVelocity", flowpainterSourceVelocity);
+        if (flowpainterSourceVelocity.magnitude > 0 || erasing)
+            paintFlow_compute.SetBool("painting", true);
         else
-            flowPainterComputeShader.SetBool("painting", false);
-        flowPainterComputeShader.SetBuffer(flowPainterKernel, "flowBuffer", flowMapBuffer);
-        flowPainterComputeShader.Dispatch(flowPainterKernel, velocityBoxSize.x / 8, velocityBoxSize.y / 8, velocityBoxSize.z / 8);
+            paintFlow_compute.SetBool("painting", false);
+        paintFlow_compute.SetBuffer(paintFlow_kernel, "flowBuffer", constantFlowBuffer);
+        paintFlow_compute.Dispatch(paintFlow_kernel, velocityBoxSize.x / 8, velocityBoxSize.y / 8, velocityBoxSize.z / 8);
 
     }
 
+    void GenerateFlowMap()
+    {
+        evaluateVelocitySources_compute.SetVector("worldPos", transform.position);
+        evaluateVelocitySources_compute.SetVector("worldScale", transform.localScale);
+        evaluateVelocitySources_compute.SetInt("numThreadGroupsX", velocityBoxSize.x / 8);
+        evaluateVelocitySources_compute.SetInt("numThreadGroupsY", velocityBoxSize.y / 8);
+        evaluateVelocitySources_compute.SetInt("numThreadGroupsZ", velocityBoxSize.z / 8);
+        evaluateVelocitySources_compute.SetBuffer(evaluateVelocitySources_kernel, "realtimeFlowMapBuffer", realtimeFlowBuffer);
+        evaluateVelocitySources_compute.SetBuffer(evaluateVelocitySources_kernel, "velocitySourcesBuffer", velocitySourcesBuffer);
+        evaluateVelocitySources_compute.Dispatch(evaluateVelocitySources_kernel, numAffectors / 5, 1, 1);
+        // CHANGE DEPENDING ON NUMBER OF SOURCES! MAKE SURE TO CHANGE IN SHADER TOO!
+    }
+
+    void UpdateVelocitySourcesBuffer()
+    {
+        for (int i = 0; i < numAffectors; i++)
+        {
+            velocityAffectorsPrev[i].velocity = velocityAffectorsCurrent[i].position - velocityAffectorsPrev[i].position;
+            velocityAffectorsPrev[i].position = velocityAffectorsCurrent[i].position;
+        }
+        velocitySourcesBuffer.SetData(velocityAffectorsPrev);
+    }
+
+    void ResetRealtimeFlowMapBuffer()
+    {
+        resetRealtimeFlowMap_compute.SetInt("numThreadGroupsX", velocityBoxSize.x / 8);
+        resetRealtimeFlowMap_compute.SetInt("numThreadGroupsY", velocityBoxSize.y / 8);
+        resetRealtimeFlowMap_compute.SetInt("numThreadGroupsZ", velocityBoxSize.z / 8);
+        resetRealtimeFlowMap_compute.SetBuffer(resetRealtimeFlowMap_kernel, "realtimeFlowMapBufferPrev", realtimeFlowBuffer);
+        resetRealtimeFlowMap_compute.SetBuffer(resetRealtimeFlowMap_kernel, "realtimeFlowMapBuffer", realtimeFlowBufferPrev);
+        resetRealtimeFlowMap_compute.SetFloat("deltaTime", Time.deltaTime);
+        resetRealtimeFlowMap_compute.SetFloat("diffusionRate", 0.9f);
+        resetRealtimeFlowMap_compute.Dispatch(resetRealtimeFlowMap_kernel, velocityBoxSize.x / 8, velocityBoxSize.y / 8, velocityBoxSize.z / 8);
+        resetRealtimeFlowMap_compute.SetBuffer(resetRealtimeFlowMap_kernel, "realtimeFlowMapBuffer", realtimeFlowBuffer);
+        resetRealtimeFlowMap_compute.SetBuffer(resetRealtimeFlowMap_kernel, "realtimeFlowMapBufferPrev", realtimeFlowBufferPrev);
+        resetRealtimeFlowMap_compute.Dispatch(resetRealtimeFlowMap_kernel, velocityBoxSize.x / 8, velocityBoxSize.y / 8, velocityBoxSize.z / 8);
+    }
+
+    /*********************************************/
+    /*********************************************/
+    /**************** UPDATE *********************/
+    /*********************************************/
+    /*********************************************/
+
     private void Update()
     {
-        // move the particles along the fluid
-        AdvectParticles();
+        ResetRealtimeFlowMapBuffer();
+
+        UpdateVelocitySourcesBuffer();
+
+        GenerateFlowMap();
+        
+        MoveParticles();
 
         PaintFlow();
 
-        // draw the vector map in the editor
         if (drawVelocityVectors)
             DrawVelocityVectors();
-
-        
     }
 
     // render the materials
@@ -300,9 +415,12 @@ public class ParticleSimulation : MonoBehaviour {
     // when this GameObject is disabled, release the buffers and materials
     private void OnDisable()
     {
-        flowMapBuffer.Release();
+        constantFlowBuffer.Release();
         particleBuffer.Release();
         meshPointsBuffer.Release();
+        velocitySourcesBuffer.Release();
+        realtimeFlowBuffer.Release();
+        realtimeFlowBufferPrev.Release();
 
         DestroyImmediate(vectorMaterial);
         DestroyImmediate(particleMaterial);
@@ -314,8 +432,5 @@ public class ParticleSimulation : MonoBehaviour {
         Gizmos.color = new Color(1, 0, 0, 0.5F);
         Vector3 cube = new Vector3(velocityBoxSize.x * transform.localScale.x, velocityBoxSize.y * transform.localScale.y, velocityBoxSize.z * transform.localScale.z);
         Gizmos.DrawWireCube(transform.position + cube / 2, cube);
-
-        
     }
-
 }

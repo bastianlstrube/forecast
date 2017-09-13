@@ -1,0 +1,77 @@
+﻿#pragma kernel EvaluateVelocitySources
+
+#define threads_per_group_x 8
+#define threads_per_group_y 8
+#define threads_per_group_z 8
+
+float timeStep;
+
+struct velocitySource
+{
+	float3 position;
+	float3 velocity;
+};
+
+#define findID(mapX, mapY, mapZ) (mapX + totalThreadsX * (mapY + totalThreadsY * mapZ))
+
+RWStructuredBuffer<float3> realtimeFlowMapBuffer;
+RWStructuredBuffer<velocitySource> velocitySourcesBuffer;
+
+int numThreadGroupsX;
+int numThreadGroupsY;
+int numThreadGroupsZ;
+
+float3 velocityBoxSize;
+
+
+[numthreads(5, 1, 1)]
+void EvaluateVelocitySources(uint3 dispatchID : SV_DispatchThreadID)
+{
+	int totalThreadsX = threads_per_group_x * numThreadGroupsX;
+	int totalThreadsY = threads_per_group_y * numThreadGroupsY;
+	int totalThreadsZ = threads_per_group_z * numThreadGroupsZ;
+
+	int totalThreads = totalThreadsX * totalThreadsY * totalThreadsZ;
+
+	int sourceID = dispatchID.x;
+
+	int bottomX = floor(velocitySourcesBuffer[sourceID].position.x);
+	int bottomY = floor(velocitySourcesBuffer[sourceID].position.y);
+	int bottomZ = floor(velocitySourcesBuffer[sourceID].position.z);
+	int topX = ceil(velocitySourcesBuffer[sourceID].position.x);
+	int topY = ceil(velocitySourcesBuffer[sourceID].position.y);
+	int topZ = ceil(velocitySourcesBuffer[sourceID].position.z);
+
+	float3 velocity = velocitySourcesBuffer[sourceID].velocity;
+
+	realtimeFlowMapBuffer[findID(bottomX, bottomY, bottomZ)] = velocity;	// 0, 0, 0
+	realtimeFlowMapBuffer[findID(topX, bottomY, bottomZ)] = velocity;		// 1, 0, 0
+	realtimeFlowMapBuffer[findID(bottomX, topY, bottomZ)] = velocity;		// 0, 1, 0
+	realtimeFlowMapBuffer[findID(bottomX, bottomY, topZ)] = velocity;		// 0, 0, 1
+	realtimeFlowMapBuffer[findID(topX, topY, bottomZ)] = velocity;			// 1, 1, 0
+	realtimeFlowMapBuffer[findID(topX, bottomY, topZ)] = velocity;			// 1, 0, 1
+	realtimeFlowMapBuffer[findID(bottomX, topY, topZ)] = velocity;			// 0, 1, 1
+	realtimeFlowMapBuffer[findID(topX, topY, topZ)] = velocity;				// 1, 1, 1
+
+	for (int i = 0; i < 4; i++)
+	{
+
+
+		bottomX--;
+		bottomY--;
+		bottomZ--;
+		topX++;
+		topY++;
+		topZ++;
+
+		realtimeFlowMapBuffer[findID(bottomX, bottomY, bottomZ)] = velocity;	// 0, 0, 0
+		realtimeFlowMapBuffer[findID(topX, bottomY, bottomZ)] = velocity;		// 1, 0, 0
+		realtimeFlowMapBuffer[findID(bottomX, topY, bottomZ)] = velocity;		// 0, 1, 0
+		realtimeFlowMapBuffer[findID(bottomX, bottomY, topZ)] = velocity;		// 0, 0, 1
+		realtimeFlowMapBuffer[findID(topX, topY, bottomZ)] = velocity;			// 1, 1, 0
+		realtimeFlowMapBuffer[findID(topX, bottomY, topZ)] = velocity;			// 1, 0, 1
+		realtimeFlowMapBuffer[findID(bottomX, topY, topZ)] = velocity;			// 0, 1, 1
+		realtimeFlowMapBuffer[findID(topX, topY, topZ)] = velocity;				// 1, 1, 1
+	}
+}
+

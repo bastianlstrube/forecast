@@ -29,7 +29,7 @@ void DiffuseFluid(uint3 dispatchID : SV_DispatchThreadID)
 	
 	int centerID = findID(dispatchID.x, dispatchID.y, dispatchID.z);
 	int frontID = findID(dispatchID.x, dispatchID.y, dispatchID.z + 1);
-	int backID = findID(dispatchID.x , dispatchID.y, dispatchID.z - 1);
+	int backID = findID(dispatchID.x, dispatchID.y, dispatchID.z - 1);
 	int northID = findID(dispatchID.x, dispatchID.y + 1, dispatchID.z);
 	int southID = findID(dispatchID.x, dispatchID.y - 1, dispatchID.z);
 	int eastID = findID(dispatchID.x + 1, dispatchID.y, dispatchID.z);
