@@ -59,7 +59,7 @@
 		o.pos = mul(UNITY_MATRIX_VP, float4(worldPos,1.0f));
 		float dist = distance(_WorldSpaceCameraPos, worldPos);
 		float alpha = saturate(_PaintSourceDistance + _PaintBrushSize - dist) * saturate(dist - _PaintSourceDistance + _PaintBrushSize);
-		o.col = buf_Points[id].col * float4(alpha, 1.0f, alpha, saturate(alpha+0.2f));
+		o.col = buf_Points[id].col * float4(alpha, 1.0f, alpha, saturate(alpha+0.3f));
 
 		return o;
 	}

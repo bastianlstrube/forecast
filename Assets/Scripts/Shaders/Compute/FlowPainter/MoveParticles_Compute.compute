@@ -127,7 +127,7 @@ void MoveParticles(uint3 dispatchID : SV_DispatchThreadID)
 	
 
 	/*PERSIAN CARPET*/
-
+	/*
 	float2 p = -5.0 + 10.0*scaledPosition.xy;
 	p.x *= velocityBoxSize.x / velocityBoxSize.y;
 	p *= 0.003f;
@@ -145,7 +145,8 @@ void MoveParticles(uint3 dispatchID : SV_DispatchThreadID)
 	float h = floor(j*6.0f) / 5.0f + 0.07f;
 	h += smoothstep(0.0f, 0.4f, (j*6.0f / 5.0f)%(1.0f / 5.0f)*5.0f) / 5.0f - 0.5f;
 	particleBuffer[particleID].color = float4(hsv(h, 1.0, smoothstep(-1.0, 3.0, length(p))), 1.0f);
-
+	*/
+	particleBuffer[particleID].color = float4(1.0f, 1.0f, 1.0f, 1.0f);
 	particleBuffer[particleID].position += particleBuffer[particleID].direction * particleBuffer[particleID].velocity;
 }
 

@@ -109,6 +109,8 @@ public class ParticleSimulation : MonoBehaviour {
     public float sizeByVelocity = 200.0f;
     public Color globalTint = Color.white;
     public bool useVelocityAlpha = false;
+    public AnimationCurve spawnDensityZ;
+    public AnimationCurve sizeByZPosition;
 
     [Space(10.0f)]
     [Header("Color Fractals")]
@@ -252,7 +254,8 @@ public class ParticleSimulation : MonoBehaviour {
         Particle[] particleMap = new Particle[numParticles];
         for (int i = 0; i < numParticles; i++)
         {
-            Vector3 spawnPosition = new Vector3(Random.Range(0.0f, velocityBoxSize.x), Random.Range(0.0f, velocityBoxSize.y), Random.Range(0.0f, velocityBoxSize.z));
+            float zPosition = spawnDensityZ.Evaluate(Random.value) * velocityBoxSize.z;
+            Vector3 spawnPosition = new Vector3(Random.Range(0.0f, velocityBoxSize.x), Random.Range(0.0f, velocityBoxSize.y), zPosition);
             Vector3 startDirection = new Vector3(Random.Range(-1.0f, 1.0f), Random.Range(-1.0f, 1.0f), Random.Range(-1.0f, 1.0f));
             //startDirection = Vector3.zero;
             particleMap[i] = new Particle(spawnPosition, startDirection.normalized, Vector4.zero, 0, Random.Range(particleLifeSpan.min, particleLifeSpan.max), spawnPosition, 1.0f, 0f);
@@ -299,6 +302,8 @@ public class ParticleSimulation : MonoBehaviour {
 
     void DrawVelocityVectors()
     {
+        generateVectorMesh_compute.SetVector("worldPos", transform.position);
+        generateVectorMesh_compute.SetVector("worldScale", transform.localScale);
         generateVectorMesh_compute.SetBuffer(generateVectorMesh_kernel, "vectorMapBuffer", constantFlowBuffer);
         generateVectorMesh_compute.SetBuffer(generateVectorMesh_kernel, "meshPointBuffer", meshPointsBuffer);
         generateVectorMesh_compute.SetInt("numThreadGroupsX", velocityBoxSize.x / 8);

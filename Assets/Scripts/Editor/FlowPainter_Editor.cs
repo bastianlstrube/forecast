@@ -58,6 +58,7 @@ public class FlowPainter_Editor : EditorWindow {
     {
         if (EditorApplication.isPlaying)
         {
+            particleSimulation = GameObject.FindGameObjectWithTag("ParticleSimulation").GetComponent<ParticleSimulation>();
 
             if (checkAction)
             {
@@ -451,37 +452,42 @@ public class FlowPainter_Editor : EditorWindow {
 
     void LoadFlow()
     {
-        string path = EditorUtility.OpenFilePanel("Load Flow...", "./Assets/Flows", "flo");
-        
-        if (File.Exists(path))
+        if (particleSimulation)
         {
-            System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
-            timer.Start();
+            string path = EditorUtility.OpenFilePanel("Load Flow...", "./Assets/Flows", "flo");
 
-            EditorUtility.DisplayProgressBar("Loading " + Path.GetFileName(path), "Loading Flow Map file from system...", 0f);
+            if (File.Exists(path))
+            {
+                System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
+                timer.Start();
 
-            BinaryFormatter bf = new BinaryFormatter();
-            FileStream fileStream = new FileStream(path, FileMode.Open);
+                EditorUtility.DisplayProgressBar("Loading " + Path.GetFileName(path), "Loading Flow Map file from system...", 0f);
 
-            EditorUtility.DisplayProgressBar("Loading " + Path.GetFileName(path), "Deserializing Flow Map...", 0.2f);
+                BinaryFormatter bf = new BinaryFormatter();
+                FileStream fileStream = new FileStream(path, FileMode.Open);
 
-            FlowMap flowMap = bf.Deserialize(fileStream) as FlowMap;
+                EditorUtility.DisplayProgressBar("Loading " + Path.GetFileName(path), "Deserializing Flow Map...", 0.2f);
 
-            EditorUtility.DisplayProgressBar("Loading " + Path.GetFileName(path), "Closing filestream...", 0.8f);
+                FlowMap flowMap = bf.Deserialize(fileStream) as FlowMap;
 
-            fileStream.Close();
+                EditorUtility.DisplayProgressBar("Loading " + Path.GetFileName(path), "Closing filestream...", 0.8f);
 
-            EditorUtility.DisplayProgressBar("Loading " + Path.GetFileName(path), "Passing Flow Map to GPU...", 0.9f);
+                fileStream.Close();
 
-            particleSimulation.SetFlowMap(flowMap.DeserializeFlowMap(), flowMap.mapSizeX, flowMap.mapSizeY, flowMap.mapSizeZ);
-            filename = Path.GetFileName(path);
-            persistentFilePath = path;
-            unsaved = false;
+                EditorUtility.DisplayProgressBar("Loading " + Path.GetFileName(path), "Passing Flow Map to GPU...", 0.9f);
 
-            EditorUtility.ClearProgressBar();
+                particleSimulation.SetFlowMap(flowMap.DeserializeFlowMap(), flowMap.mapSizeX, flowMap.mapSizeY, flowMap.mapSizeZ);
+                filename = Path.GetFileName(path);
+                persistentFilePath = path;
+                unsaved = false;
+
+                EditorUtility.ClearProgressBar();
+            }else{
+                Debug.Log("File does not exist!");
+            }
         } else
         {
-            Debug.Log("File does not exist!");
+            Debug.Log("Draw something first. Yeah my code is broken.");
         }
     }
 
