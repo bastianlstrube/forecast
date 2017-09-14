@@ -51,6 +51,8 @@
 				float3 spawnPosition;
 				float drag;
 				float velocity;
+				float baseVelocity;
+				float scale;
 			};
 
 			// buffer containing array of points we want to draw
@@ -75,7 +77,7 @@
 				i.uv = float2(0, 0);
 				i.dir = particles[id].direction;
 				i.drag = particles[id].drag;
-				i.sizeOverLifetime = 2.0f * (0.5f - abs((particles[id].timeElapsed / particles[id].lifeSpan) - 0.5f));
+				i.sizeOverLifetime = 2.0f * (0.5f - abs((particles[id].timeElapsed / particles[id].lifeSpan) - 0.5f)) * particles[id].scale;
 				i.col = particles[id].col;
 				i.velocity = particles[id].velocity;
 				return i;

@@ -41,11 +41,11 @@ internal sealed class CustomAssetImporter : AssetPostprocessor {
 
         importer.compressionQuality = 100;
 
-        if( fileName.Contains("_normal") || fileName.Contains("_nmp") ) {
+        if( fileName.Contains("normal") || fileName.Contains("_nmp") ) {
             importer.textureType = TextureImporterType.NormalMap;
         }
         
-        if ( fileName.Contains("cavity") || fileName.Contains("roughness") || fileName.Contains("displacement") ) {
+        if ( fileName.Contains("cavity") || fileName.Contains("roughness") || fileName.Contains("displacement") || fileName.Contains("_xspec") ) {
             importer.sRGBTexture = false;
         }
         if (fileName.Contains("albedo"))

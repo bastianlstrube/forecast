@@ -48,9 +48,11 @@ public class ParticleSimulation : MonoBehaviour {
         public Vector3 spawnPosition;   // Initial spawn position never changes
         public float thisDrag;
         public float velocity;
+        public float targetVelocity;
+        public float baseScale;
 
         // Constructor
-        public Particle(Vector3 _position, Vector3 _direction, Vector4 _color, float _timeElapsed, float _lifeSpan, Vector3 _spawnPosition, float _thisDrag, float _velocity)
+        public Particle(Vector3 _position, Vector3 _direction, Vector4 _color, float _timeElapsed, float _lifeSpan, Vector3 _spawnPosition, float _thisDrag, float _velocity, float _targetVelocity, float _baseScale)
         {
             position = _position;
             direction = _direction;
@@ -60,6 +62,8 @@ public class ParticleSimulation : MonoBehaviour {
             spawnPosition = _spawnPosition;
             thisDrag = _thisDrag;
             velocity = _velocity;
+            targetVelocity = _targetVelocity;
+            baseScale = _baseScale;
         }
     }
 
@@ -108,9 +112,11 @@ public class ParticleSimulation : MonoBehaviour {
     public LifeSpanStruct particleLifeSpan = new LifeSpanStruct(1f, 3f);
     public float sizeByVelocity = 200.0f;
     public Color globalTint = Color.white;
+    public Gradient colourByZPosition;
     public bool useVelocityAlpha = false;
     public AnimationCurve spawnDensityZ = AnimationCurve.Linear(0, 0, 1, 1);
     public AnimationCurve sizeByZPosition = AnimationCurve.Linear(0, 1, 1, 0);
+    public float baseVelocity = 1.0f;
 
     [Space(10.0f)]
     [Header("Color Fractals")]
@@ -159,6 +165,8 @@ public class ParticleSimulation : MonoBehaviour {
 
     void Start()
     {
+        
+
         // calculate box volume
         boxVolume = velocityBoxSize.x * velocityBoxSize.y * velocityBoxSize.z;
 
@@ -183,7 +191,7 @@ public class ParticleSimulation : MonoBehaviour {
         realtimeFlowBufferPrev = new ComputeBuffer(boxVolume, sizeof(float) * 3);
         if(numAffectors > 0)
             velocitySourcesBuffer = new ComputeBuffer(numAffectors, sizeof(float) * 6);
-        particleBuffer = new ComputeBuffer(numParticles, (sizeof(float) * 3) * 3 + (sizeof(float) * 4) + (sizeof(float)) * 4);
+        particleBuffer = new ComputeBuffer(numParticles, sizeof(float) * 19);
         meshPointsBuffer = new ComputeBuffer(boxVolume * 2, sizeof(float) * 3 + sizeof(float) * 4);
 
         InitialiseConstantFlowBuffer();
@@ -255,11 +263,13 @@ public class ParticleSimulation : MonoBehaviour {
         for (int i = 0; i < numParticles; i++)
         {
             float zPosition = spawnDensityZ.Evaluate(Random.value) * velocityBoxSize.z;
-            float lifeSpan = particleLifeSpan.min + spawnDensityZ.Evaluate(Random.value) * (particleLifeSpan.max- particleLifeSpan.min);
+            //float lifeSpan = particleLifeSpan.min + spawnDensityZ.Evaluate(Random.value) * (particleLifeSpan.max- particleLifeSpan.min);
+            float lifeSpan = Random.Range(particleLifeSpan.min, particleLifeSpan.max);
+            float size = sizeByZPosition.Evaluate(zPosition/velocityBoxSize.z);
             Vector3 spawnPosition = new Vector3(Random.Range(0.0f, velocityBoxSize.x), Random.Range(0.0f, velocityBoxSize.y), zPosition);
             Vector3 startDirection = new Vector3(Random.Range(-1.0f, 1.0f), Random.Range(-1.0f, 1.0f), Random.Range(-1.0f, 1.0f));
             //startDirection = Vector3.zero;
-            particleMap[i] = new Particle(spawnPosition, startDirection.normalized, Vector4.zero, 0, lifeSpan, spawnPosition, 1.0f, 0f);
+            particleMap[i] = new Particle(spawnPosition, startDirection.normalized, Vector4.zero, 0, lifeSpan, spawnPosition, 1.0f, 0f, baseVelocity, size);
         }
 
         particleBuffer.SetData(particleMap);
