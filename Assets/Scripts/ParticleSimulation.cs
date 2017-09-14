@@ -268,13 +268,22 @@ public class ParticleSimulation : MonoBehaviour {
     void InitialiseParticles()
     {
         Particle[] particleMap = new Particle[numParticles];
+
+        Vector3 prevPos = Vector3.zero;
+
+
         for (int i = 0; i < numParticles; i++)
         {
             float zPosition = spawnDensityZ.Evaluate(Random.value) * velocityBoxSize.z;
             //float lifeSpan = particleLifeSpan.min + spawnDensityZ.Evaluate(Random.value) * (particleLifeSpan.max- particleLifeSpan.min);
             float lifeSpan = Random.Range(particleLifeSpan.min, particleLifeSpan.max);
             float size = sizeByZPosition.Evaluate(zPosition/velocityBoxSize.z);
-            Vector3 spawnPosition = new Vector3(Random.Range(0.0f, velocityBoxSize.x), Random.Range(0.0f, velocityBoxSize.y), zPosition);
+
+            Vector3 spawnPosition;
+
+            spawnPosition = new Vector3(Random.Range(0.0f, velocityBoxSize.x), Random.Range(0.0f, velocityBoxSize.y), zPosition);
+
+            //spawnPosition = new Vector3(spawnPosition.x, Mathf.Sin(spawnPosition.y) * velocityBoxSize.y *0.5f + velocityBoxSize.y * 0.5f, spawnPosition.z);
             Vector3 startDirection = new Vector3(Random.Range(-1.0f, 1.0f), Random.Range(-1.0f, 1.0f), Random.Range(-1.0f, 1.0f));
             //startDirection = Vector3.zero;
             particleMap[i] = new Particle(spawnPosition, startDirection.normalized, Vector4.zero, 0, lifeSpan, spawnPosition, 1.0f, 0f, baseVelocity, size, Vector4.zero);
