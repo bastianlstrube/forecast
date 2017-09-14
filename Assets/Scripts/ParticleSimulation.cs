@@ -432,7 +432,7 @@ public class ParticleSimulation : MonoBehaviour {
         else
             pulse -= animatePulse;
 
-        if (pulse < -0.5)
+        if (pulse < -1.0)
             forward = true;
         else if (pulse > 0.8f)
             forward = false;
