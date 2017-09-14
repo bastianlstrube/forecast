@@ -47,6 +47,8 @@ float scale;
 
 int velocityAlpha;
 
+float pulse;
+
 float3 hsv(float h, float s, float v) {
 	return lerp(float3(1.0f, 1.0f, 1.0f), clamp((abs(frac(h + float3(3.0f, 2.0f, 1.0f) / 3.0f)*6.0f - 3.0f) - 1.0f), 0.0f, 1.0f), s)*v;
 }
@@ -148,7 +150,7 @@ void MoveParticles(uint3 dispatchID : SV_DispatchThreadID)
 	h += smoothstep(0.0f, 0.4f, (j*6.0f / 5.0f)%(1.0f / 5.0f)*5.0f) / 5.0f - 0.5f;
 	particleBuffer[particleID].color = float4(hsv(h, 1.0, smoothstep(-1.0, 3.0, length(p))), 1.0f);
 	*/
-	particleBuffer[particleID].color = float4(1.0f, 1.0f, 1.0f, 1.0f);
+	//particleBuffer[particleID].color = float4(1.0f, 1.0f, 1.0f, 1.0f);
 	particleBuffer[particleID].position += particleBuffer[particleID].direction * particleBuffer[particleID].velocity;
 }
 

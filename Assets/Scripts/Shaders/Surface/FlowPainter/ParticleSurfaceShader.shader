@@ -104,7 +104,7 @@
 
 				look = normalize(look);
 				float3 right = normalize(cross(look, up));
-				up = normalize(cross(right, look)) * ((p[0].velocity) * (_SizeByVelocity)+(1.0f)); // - p[0].drag));
+				up = normalize(cross(right, look));// *((p[0].velocity) * (_SizeByVelocity)+(1.0f)); // - p[0].drag));
 
 				v[0] = RotPoint(p[0].pos, float3(-halfS.x, -halfS.y, 0), right, up);
 				v[1] = RotPoint(p[0].pos, float3(-halfS.x, halfS.y, 0), right, up);
@@ -142,7 +142,7 @@
 
 			float4 frag(input i) : COLOR
 			{
-				fixed4 col = tex2D(_Sprite, i.uv) * (_Tint) * i.col;	// multiplactive colour blending
+				fixed4 col = tex2D(_Sprite, i.uv) * (_Tint) * i.col + half4(1.0f, 1.0f, 0.0f, 1.0f);	// multiplactive colour blending
 				UNITY_APPLY_FOG(i.fogCoord, col);
 
 				return col;
