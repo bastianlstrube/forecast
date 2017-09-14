@@ -53,6 +53,7 @@
 				float velocity;
 				float baseVelocity;
 				float scale;
+				float4 emissive;
 			};
 
 			// buffer containing array of points we want to draw
@@ -65,8 +66,9 @@
 				float2 uv : TEXCOORD0;
 				float drag : BLENDWEIGHT;
 				float sizeOverLifetime : PSIZE;
-				float4 col : COLOR;
+				float4 col : COLOR0;
 				float velocity : TEXCOORD3;
+				float4 emissive : COLOR1;
 				UNITY_FOG_COORDS(1)
 			};
 
@@ -80,6 +82,7 @@
 				i.sizeOverLifetime = 2.0f * (0.5f - abs((particles[id].timeElapsed / particles[id].lifeSpan) - 0.5f)) * particles[id].scale;
 				i.col = particles[id].col;
 				i.velocity = particles[id].velocity;
+				i.emissive = particles[id].emissive;
 				return i;
 			}
 
@@ -114,6 +117,7 @@
 				input pIn;
 				pIn.velocity = 0;
 				pIn.col = p[0].col;
+				pIn.emissive = p[0].emissive;
 
 				pIn.dir = float3(0, 0, 0);
 				pIn.drag = 0;
@@ -142,7 +146,8 @@
 
 			float4 frag(input i) : COLOR
 			{
-				fixed4 col = tex2D(_Sprite, i.uv) * (_Tint) * i.col + half4(1.0f, 1.0f, 0.0f, 1.0f);	// multiplactive colour blending
+				
+				fixed4 col = tex2D(_Sprite, i.uv) * (_Tint) * i.col + i.emissive;	// multiplactive colour blending
 				UNITY_APPLY_FOG(i.fogCoord, col);
 
 				return col;

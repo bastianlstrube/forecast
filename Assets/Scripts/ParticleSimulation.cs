@@ -50,9 +50,10 @@ public class ParticleSimulation : MonoBehaviour {
         public float velocity;
         public float targetVelocity;
         public float baseScale;
+        public Vector4 emissive;
 
         // Constructor
-        public Particle(Vector3 _position, Vector3 _direction, Vector4 _color, float _timeElapsed, float _lifeSpan, Vector3 _spawnPosition, float _thisDrag, float _velocity, float _targetVelocity, float _baseScale)
+        public Particle(Vector3 _position, Vector3 _direction, Vector4 _color, float _timeElapsed, float _lifeSpan, Vector3 _spawnPosition, float _thisDrag, float _velocity, float _targetVelocity, float _baseScale, Vector4 _emissive)
         {
             position = _position;
             direction = _direction;
@@ -64,6 +65,7 @@ public class ParticleSimulation : MonoBehaviour {
             velocity = _velocity;
             targetVelocity = _targetVelocity;
             baseScale = _baseScale;
+            emissive = _emissive;
         }
     }
 
@@ -104,6 +106,10 @@ public class ParticleSimulation : MonoBehaviour {
     public int numParticles = 1048575;
     [Range(0, 1)]
     public float drag = 0.9f;   // drag on the particles, not the fluid viscosity
+    [Range(0, 1)]
+    public float pulse = 1.0f;
+    public float animatePulse = 0.01f;
+
 
     [Space(10.0f)]
     [Header("Particle Properties")]
@@ -163,6 +169,8 @@ public class ParticleSimulation : MonoBehaviour {
     [HideInInspector]
     public bool erasing = false;
 
+    bool forward = true;
+
     void Start()
     {
         
@@ -191,7 +199,7 @@ public class ParticleSimulation : MonoBehaviour {
         realtimeFlowBufferPrev = new ComputeBuffer(boxVolume, sizeof(float) * 3);
         if(numAffectors > 0)
             velocitySourcesBuffer = new ComputeBuffer(numAffectors, sizeof(float) * 6);
-        particleBuffer = new ComputeBuffer(numParticles, sizeof(float) * 19);
+        particleBuffer = new ComputeBuffer(numParticles, sizeof(float) * 23);
         meshPointsBuffer = new ComputeBuffer(boxVolume * 2, sizeof(float) * 3 + sizeof(float) * 4);
 
         InitialiseConstantFlowBuffer();
@@ -269,7 +277,7 @@ public class ParticleSimulation : MonoBehaviour {
             Vector3 spawnPosition = new Vector3(Random.Range(0.0f, velocityBoxSize.x), Random.Range(0.0f, velocityBoxSize.y), zPosition);
             Vector3 startDirection = new Vector3(Random.Range(-1.0f, 1.0f), Random.Range(-1.0f, 1.0f), Random.Range(-1.0f, 1.0f));
             //startDirection = Vector3.zero;
-            particleMap[i] = new Particle(spawnPosition, startDirection.normalized, Vector4.zero, 0, lifeSpan, spawnPosition, 1.0f, 0f, baseVelocity, size);
+            particleMap[i] = new Particle(spawnPosition, startDirection.normalized, Vector4.zero, 0, lifeSpan, spawnPosition, 1.0f, 0f, baseVelocity, size, Vector4.zero);
         }
 
         particleBuffer.SetData(particleMap);
@@ -305,6 +313,7 @@ public class ParticleSimulation : MonoBehaviour {
         moveParticles_compute.SetVector("fold", fold);
         moveParticles_compute.SetVector("translate", translate);
         moveParticles_compute.SetFloat("scale", scale);
+        moveParticles_compute.SetFloat("pulse", pulse);
 
         moveParticles_compute.SetVector("velocityBoxSize", new Vector3(velocityBoxSize.x * transform.localScale.x, velocityBoxSize.y * transform.localScale.y, velocityBoxSize.z * transform.localScale.z));
         moveParticles_compute.Dispatch(moveParticles_kernel, numParticles / 512, 1, 1);
@@ -409,7 +418,17 @@ public class ParticleSimulation : MonoBehaviour {
 
     private void Update()
     {
-        if (numAffectors > 0)
+        if (forward)
+            pulse += animatePulse;
+        else
+            pulse -= animatePulse;
+
+        if (pulse < -0.5)
+            forward = true;
+        else if (pulse > 0.8f)
+            forward = false;
+
+        if (numAffectors > -0.5f)
             ResetRealtimeFlowMapBuffer();
 
         if (numAffectors > 0)
