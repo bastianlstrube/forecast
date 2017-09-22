@@ -63,7 +63,7 @@ public class FluidParticlesDispatch : MonoBehaviour
 
     [Header("Compute Shaders")]
     // Computing the sources of velocity
-    public ComputeShader fluidSourcesComputeShader;
+    //public ComputeShader fluidSourcesComputeShader;
     public ComputeShader fluidAffectorComputeShader;
 
     // Fluid diffusion and self advection
@@ -126,7 +126,7 @@ public class FluidParticlesDispatch : MonoBehaviour
 
     // kernels
     private int fluidAffectorKernel;
-    private int fluidSourcesKernel;
+    //private int fluidSourcesKernel;
     private int diffuseFluidKernel;
     private int advectFluidKernel;
     private int divergenceKernel;
@@ -142,7 +142,7 @@ public class FluidParticlesDispatch : MonoBehaviour
     // Other variables
     private int boxVolume;          // volume of the box, calculated at runtime from side length
     private Vector3 affectorPrev;   // used in calculating the velocity of the affector between frames
-    private OSCReceiver oscReceiver;
+    //private OSCReceiver oscReceiver;
 
     void Start()
     {
@@ -156,7 +156,7 @@ public class FluidParticlesDispatch : MonoBehaviour
         particleMaterial = new Material(particleSurfaceShader);
 
         // find the compute shader's "main" function and store it
-        fluidSourcesKernel = fluidSourcesComputeShader.FindKernel("AddFluidSources");
+        //fluidSourcesKernel = fluidSourcesComputeShader.FindKernel("AddFluidSources");
         fluidAffectorKernel = fluidAffectorComputeShader.FindKernel("AddFluidAffector");
         diffuseFluidKernel = diffuseFluidComputeShader.FindKernel("DiffuseFluid");
         advectFluidKernel = advectFluidComputeShader.FindKernel("AdvectFluid");
@@ -178,13 +178,13 @@ public class FluidParticlesDispatch : MonoBehaviour
 
         meshPointsBuffer = new ComputeBuffer(boxVolume * 2, sizeof(float) * 3);
 
-        fluidSourcesBuffer = new ComputeBuffer(OSCReceiver.maxNumSources, sizeof(float) * 6);
+        //fluidSourcesBuffer = new ComputeBuffer(OSCReceiver.maxNumSources, sizeof(float) * 6);
 
         InitialiseVectorMap();
         InitialiseParticles();
         InitialiseProjectionBuffers();
 
-        oscReceiver = GetComponent<OSCReceiver>();
+        //oscReceiver = GetComponent<OSCReceiver>();
 
         InitialiseFluidSourcesBuffer();
     }
@@ -230,7 +230,7 @@ public class FluidParticlesDispatch : MonoBehaviour
 
     void InitialiseFluidSourcesBuffer()
     {
-        fluidSourcesBuffer.SetData(oscReceiver.sourceMap);
+        //fluidSourcesBuffer.SetData(oscReceiver.sourceMap);
     }
 
     void AddFluidAffectorVelocity(Vector3 difference)
@@ -252,7 +252,7 @@ public class FluidParticlesDispatch : MonoBehaviour
 
     void AddFluidSources()
     {
-        
+        /*
         if (oscReceiver.hasVelocity)
         {
             fluidSourcesBuffer.SetData(oscReceiver.sourceMap);
@@ -267,7 +267,7 @@ public class FluidParticlesDispatch : MonoBehaviour
 
             oscReceiver.ResetSourceMap();
         }
-        
+        */
     }
 
     void DiffuseFluid(int iterations)

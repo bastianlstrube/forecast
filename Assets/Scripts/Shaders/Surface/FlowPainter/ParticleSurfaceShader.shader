@@ -147,7 +147,7 @@
 			float4 frag(input i) : COLOR
 			{
 				
-				fixed4 col = tex2D(_Sprite, i.uv) * (_Tint) * i.col + i.emissive + float4(0.0f,0.0f,3.0f,2.0f);	// multiplactive colour blending
+				fixed4 col = tex2D(_Sprite, i.uv) * (_Tint)* i.col * i.emissive *float4(5.0f,2.0f,3.0f,15.0f); //+ float4(0.0f,0.0f,3.0f,0.0f);	// multiplactive colour blending
 				UNITY_APPLY_FOG(i.fogCoord, col);
 
 				return col;

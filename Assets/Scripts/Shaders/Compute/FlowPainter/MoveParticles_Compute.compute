@@ -133,9 +133,9 @@ void MoveParticles(uint3 dispatchID : SV_DispatchThreadID)
 	float pulseToDepth = saturate((particleBuffer[particleID].position.z - pulse*velocityBoxSize.z) / velocityBoxSize.z);
 	//particleBuffer[particleID].color = float4(pulseToDepth*5.0f, 0.0f, 5.0f, pulseToDepth + 0.1f);
 
-	particleBuffer[particleID].color = float4(1.0f, 0.0f, scaledPosition.z, 1.0f);
+	particleBuffer[particleID].color = float4(scaledPosition.y, scaledPosition.x, scaledPosition.z-0.5f, alphaScale);
 
-	particleBuffer[particleID].emissive = float4(pulseToDepth*3.0f, 1.0f, 1.0f, pulseToDepth * 2.0f);
+	particleBuffer[particleID].emissive = float4(pulseToDepth*0.1f, pulseToDepth*0.1f, pulseToDepth*3.0f, pulseToDepth * 10.0f);
 
 	/*PERSIAN CARPET*/
 	/*

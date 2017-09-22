@@ -468,6 +468,9 @@ public class FlowPainter_Editor : EditorWindow {
 
                 EditorUtility.DisplayProgressBar("Loading " + Path.GetFileName(path), "Deserializing Flow Map...", 0.2f);
 
+                //byte[] byteArray = System.IO.File.ReadAllBytes(path);
+                //https://www.reddit.com/r/Unity3D/comments/5h7re0/serializing_deserializing_data_is_extremely_slow/
+
                 FlowMap flowMap = bf.Deserialize(fileStream) as FlowMap;
 
                 EditorUtility.DisplayProgressBar("Loading " + Path.GetFileName(path), "Closing filestream...", 0.8f);
