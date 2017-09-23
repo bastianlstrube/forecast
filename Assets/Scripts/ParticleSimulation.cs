@@ -173,12 +173,9 @@ public class ParticleSimulation : MonoBehaviour {
 
     void Start()
     {
-        
-
         // calculate box volume
         boxVolume = velocityBoxSize.x * velocityBoxSize.y * velocityBoxSize.z;
 
-        
         numAffectors = velocityAffectorsCurrent.Length;
 
         // initialise materials
