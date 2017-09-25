@@ -3,19 +3,27 @@ using System.Collections.Generic;
 //using System;
 using UnityEngine;
 
-public struct FluidSource
+public struct Centroid
 {
-    public int id;
     public Vector3 position;
     public Vector3 velocity;
     public float lifespan;
 }
 
+public struct FluidSource
+{
+    public Vector3 position;
+    public Vector3 velocity;
+}
+
 public class OSCReceiver : MonoBehaviour
 {
-    public FluidSource[] fluidSources;
+
+    public ParticleSimulation particleSimulation;
 
     [HideInInspector]
+    public Centroid[] centroids;
+    
     public string RemoteIP = "127.0.0.1"; //127.0.0.1 signifies a local host 
     [HideInInspector]
     public int SendToPort = 9109; //the port you will be sending from
@@ -24,7 +32,18 @@ public class OSCReceiver : MonoBehaviour
     private Osc handler;
     private UDPPacketIO udp;
 
-    private Dictionary<int, GameObject> lightList;
+    private Dictionary<int, GameObject> centroidList;
+    private List<FluidSource> velocitySourceList;
+
+    private int sourceCount = 0;
+    private const int maxSourceCount = 1024;
+
+    [HideInInspector]
+    public FluidSource[] velocitySourceArray;
+
+    private Vector3 thisTransform;
+    private Vector3 thisScale;
+    private Quaternion thisRotation;
 
     // Use this for initialization
     void Awake()
@@ -35,16 +54,26 @@ public class OSCReceiver : MonoBehaviour
         handler.init(udp);
         handler.SetAllMessageHandler(AllMessageHandler);
         Debug.Log("OSC Connection initialized");
-        fluidSources = new FluidSource[50];
-        lightList = new Dictionary<int, GameObject>();
+        centroids = new Centroid[50];
+        centroidList = new Dictionary<int, GameObject>();
+        velocitySourceList = new List<FluidSource>();
 
         for (int i = 0; i < 50; i++)
         {
-            fluidSources[i].id = i;
-            fluidSources[i].position = Vector3.zero;
-            fluidSources[i].velocity = Vector3.zero;
-            fluidSources[i].lifespan = 0.0f;
+            centroids[i].position = Vector3.zero;
+            centroids[i].velocity = Vector3.zero;
+            centroids[i].lifespan = 0.0f;
         }
+
+        velocitySourceArray = new FluidSource[maxSourceCount];
+        for (int i = 0; i < maxSourceCount; i++)
+        {
+            velocitySourceArray[i].position = Vector3.zero;
+            velocitySourceArray[i].velocity = Vector3.zero;
+        }
+        thisTransform = transform.position;
+        thisScale = transform.localScale;
+        thisRotation = transform.rotation;
     }
 
     void OnDisable()
@@ -64,43 +93,94 @@ public class OSCReceiver : MonoBehaviour
         Vector3 centroidPositionCurrent = new Vector3(float.Parse(msgComponents[3]), float.Parse(msgComponents[4]), 0);
         Vector3 centroidPositionPrevious = new Vector3(float.Parse(msgComponents[5]), float.Parse(msgComponents[6]), 0);
 
-        int numContours = int.Parse(msgComponents[msgComponents.Length - 1]);
+        int numContourPoints = int.Parse(msgComponents[msgComponents.Length - 1]);
 
-        for (int i = 7; i < numContours; i++)
+        FluidSource thisSource = new FluidSource();
+        thisSource.position = centroidPositionCurrent;
+        thisSource.velocity = centroidPositionCurrent - centroidPositionPrevious;
+
+        velocitySourceList.Add(thisSource);
+
+        for (int i = 7; i < numContourPoints; i++)
         {
-            Vector3 velocitySourceEnd = new Vector3(float.Parse(msgComponents[i]), float.Parse(msgComponents[i++]), 0);
-            Vector3 velocitySourceStart = new Vector3(float.Parse(msgComponents[i++]), float.Parse(msgComponents[i++]), 0);
+            thisSource.position = new Vector3(float.Parse(msgComponents[i]), float.Parse(msgComponents[i++]), 0);
+            thisSource.velocity = thisSource.position - new Vector3(float.Parse(msgComponents[i++]), float.Parse(msgComponents[i++]), 0);
+            velocitySourceList.Add(thisSource);
+
+            velocitySourceArray[sourceCount].position = thisTransform + thisRotation * new Vector3(thisSource.position.x / 640.0f * thisScale.x, thisSource.position.y / 480.0f * thisScale.y, thisSource.position.z * thisScale.z);
+            //velocitySourceArray[sourceCount].position = thisSource.position;
+            velocitySourceArray[sourceCount].velocity = thisSource.velocity;
+            sourceCount++;
+            //Vector3 velocitySourceCurrent = new Vector3(float.Parse(msgComponents[i]), float.Parse(msgComponents[i++]), 0);
+            //Vector3 velocitySourcePrevious = new Vector3(float.Parse(msgComponents[i++]), float.Parse(msgComponents[i++]), 0);
         }
 
-        fluidSources[id].id = id;
-        fluidSources[id].position = centroidPositionCurrent;
-        fluidSources[id].velocity = centroidPositionCurrent - centroidPositionPrevious;
-        fluidSources[id].lifespan = lifespan;
+        centroids[id].position = centroidPositionCurrent;
+        centroids[id].velocity = centroidPositionCurrent - centroidPositionPrevious;
+        centroids[id].lifespan = lifespan;
+    }
+
+
+    void Connect()
+    {
+        udp.init(RemoteIP, SendToPort, ListenerPort);
+        handler.init(udp);
+        handler.SetAllMessageHandler(AllMessageHandler);
+        Debug.Log("OSC Connection initialized");
     }
 
     void Update()
     {
+        
         for (int i = 0; i < 50; i++)
         {
-            if(fluidSources[i].lifespan > 1)
+            if (centroids[i].lifespan > 1)
             {
-                if(!lightList.ContainsKey(i))
+                if (!centroidList.ContainsKey(i))
                 {
-                    GameObject gameObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                    gameObject.GetComponent<Renderer>().sharedMaterial.SetColor("_EmissionColor", Color.cyan * 2.0f);
-                    gameObject.transform.localScale = Vector3.one * 0.1f;
+                    GameObject gameObject = new GameObject();// GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    //gameObject.GetComponent<Renderer>().sharedMaterial.SetColor("_EmissionColor", Color.cyan * 2.0f);
+                    //gameObject.transform.localScale = Vector3.one * 0.1f;
                     Light light = gameObject.AddComponent<Light>();
                     light.color = Color.cyan;
-                    light.range = 20.0f;
-                    lightList.Add(i, gameObject);
+                    light.intensity = 2.0f;
+                    light.range = 0.0f;
+                    //light.intensity = fluidSources[i].lifespan;
+                    centroidList.Add(i, gameObject);
                 }
-                lightList[i].SetActive(true);
-                lightList[i].transform.position = transform.position + transform.rotation * new Vector3(fluidSources[i].position.x/640.0f * transform.localScale.x, fluidSources[i].position.y/480.0f * transform.localScale.y, fluidSources[i].position.z * transform.localScale.z);
-            } else {
-                if (lightList.ContainsKey(i))
-                    lightList[i].SetActive(false);
+                centroidList[i].SetActive(true);
+
+                if (centroidList[i].GetComponent<Light>().range < centroids[i].lifespan)
+                {
+                    centroidList[i].GetComponent<Light>().range += 0.05f;
+                } else
+                {
+                    centroidList[i].GetComponent<Light>().range = centroids[i].lifespan;
+                }
+                centroidList[i].transform.position = transform.position + transform.rotation * new Vector3(centroids[i].position.x / 640.0f * transform.localScale.x, centroids[i].position.y / 480.0f * transform.localScale.y, centroids[i].position.z * transform.localScale.z);
+            }
+            else
+            {
+                if (centroidList.ContainsKey(i))
+                {
+                    centroidList[i].GetComponent<Light>().range = 0.0f;
+                    centroidList[i].SetActive(false);
+                }
             }
         }
+
+        //particleSimulation.UpdateVelocitySourcesBuffer();
+        /*
+        for (int i = 0; i < maxSourceCount; i++)
+        {
+            velocitySourceArray[i].position = Vector3.zero;
+            velocitySourceArray[i].velocity = Vector3.zero;
+        }
+        */
+
+        sourceCount = 0;
+        velocitySourceList.Clear();
+
     }
 
     void OnDrawGizmos()
@@ -109,5 +189,12 @@ public class OSCReceiver : MonoBehaviour
         Matrix4x4 rotationMatrix = Matrix4x4.TRS(transform.position, transform.rotation, transform.lossyScale);
         Gizmos.matrix = rotationMatrix;
         Gizmos.DrawWireCube(Vector3.one * 0.5f, Vector3.one);
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        Gizmos.DrawIcon(transform.position + transform.rotation * (new Vector3(transform.localScale.x, transform.localScale.y / 2f, 0)), "right.png");
+        Gizmos.DrawIcon(transform.position + transform.rotation * (new Vector3(0, transform.localScale.y / 2f, 0)), "left.png");
+        Gizmos.DrawIcon(transform.position + transform.rotation * (new Vector3(transform.localScale.x / 2f, transform.localScale.y, 0)), "bottom.png");
     }
 }

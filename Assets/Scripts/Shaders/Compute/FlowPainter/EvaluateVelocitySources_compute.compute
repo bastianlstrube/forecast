@@ -24,7 +24,7 @@ int numThreadGroupsZ;
 float3 velocityBoxSize;
 
 
-[numthreads(5, 1, 1)]
+[numthreads(1024, 1, 1)]
 void EvaluateVelocitySources(uint3 dispatchID : SV_DispatchThreadID)
 {
 	int totalThreadsX = threads_per_group_x * numThreadGroupsX;
