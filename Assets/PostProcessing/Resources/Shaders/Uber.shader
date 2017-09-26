@@ -229,7 +229,13 @@ Shader "Hidden/Post FX/Uber Shader"
 
                 #if BLOOM_LENS_DIRT
                 {
-                    half3 dirt = tex2D(_Bloom_DirtTex, i.uvFlipped).rgb * _Bloom_DirtIntensity;
+					float2x2 rotationMatrix = float2x2(cos(_Time.x), -sin(_Time.x), sin(_Time.x), cos(_Time.x));
+					float2x2 rotationMatrix2 = float2x2(cos(_Time.x), sin(_Time.x), -sin(_Time.x), cos(_Time.x));
+					half3 texCol = tex2D(_Bloom_DirtTex, mul(i.uvFlipped - half2(0.5f, 0.5f), rotationMatrix) + half2(0.5f, 0.5f));
+					half3 texCol2 = tex2D(_Bloom_DirtTex, mul(i.uvFlipped - half2(0.5f, 0.5f), rotationMatrix2) + half2(0.5f, 0.5f));
+					half3 dirt = texCol* texCol2 * _Bloom_DirtIntensity;
+					
+					
                     color += bloom * dirt;
                 }
                 #endif

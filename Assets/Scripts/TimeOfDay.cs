@@ -1,8 +1,11 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using FMOD.Studio;
 
 public class TimeOfDay : MonoBehaviour {
+    private FMODUnity.StudioEventEmitter eventEmitterRef;
+
     public Light directionalLight;
     public float timeSpeed = 1f;
 
@@ -10,8 +13,17 @@ public class TimeOfDay : MonoBehaviour {
 
     private Quaternion originalRotation;
 
-	// Use this for initialization
-	void Start () {
+    void Awake()
+
+    {
+        //VOICE EMITTER IS CONSTANTLY PLAYING
+        eventEmitterRef = GetComponent<FMODUnity.StudioEventEmitter>();
+        GetComponent<FMODUnity.StudioEventEmitter>().Play();
+    }
+
+
+    // Use this for initialization
+    void Start () {
         originalRotation = directionalLight.transform.rotation;
 
     }
@@ -31,5 +43,23 @@ public class TimeOfDay : MonoBehaviour {
             if (RenderSettings.ambientIntensity > 0.5f)
                 RenderSettings.ambientIntensity -= 0.02f;
         }
+
+        
+
+        /*
+        float TriggerR = Input.GetAxis("TriggerR");   
+        eventEmitterRef.SetParameter("TriggerR", TriggerR);
+
+        float TriggerL = Input.GetAxis("TriggerL");
+        eventEmitterRef.SetParameter("TriggerL",TriggerL);
+
+        //ANALOG UP
+        float AnalogUp = Input.GetAxis("Right Stick Up");
+        eventEmitterRef.SetParameter("VolumeUp", AnalogUp);
+
+        //ANALOG SIDE
+        float AnalogSide = Input.GetAxis("Right Stick Side");
+        eventEmitterRef.SetParameter("VolumeSide", AnalogSide);
+        */
     }
 }

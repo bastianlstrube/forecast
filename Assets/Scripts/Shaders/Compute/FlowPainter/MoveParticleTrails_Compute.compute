@@ -1,0 +1,126 @@
+﻿#pragma kernel MoveParticleTrails
+
+#define findID(mapX, mapY, mapZ) (mapX + velocityBoxSize.x * (mapY + velocityBoxSize.y * mapZ))
+
+// the head of the particle trail, gets pushed around by the flow map and the users
+struct trailHead
+{
+	float3 position;
+	float3 direction;
+	float speed;
+	float timeAlive;
+	float lifeSpan;
+	float3 spawnPosition;
+};
+
+// the particles in the trail, follow the head
+struct trailParticle
+{
+	float3 position;
+	float3 albedo;
+	float3 emissive;
+	float alpha;
+	float scale;
+};
+
+RWStructuredBuffer<trailHead> trailHeadBuffer;	// the head of the particle trail
+RWStructuredBuffer<trailParticle> trailParticleBuffer;	// array of particles in the trail
+RWStructuredBuffer<trailParticle> trailParticleBufferPrev;	// array of particles in the trail
+StructuredBuffer<float3> baseFlowMap;					// flow map painted by the team
+StructuredBuffer<float3> userFlowMap;					// flow map produced by user movement
+
+int particlesPerTrail;
+float3 velocityBoxSize;
+float timeStep;
+
+float baseSpeed;
+float drag;
+
+[numthreads(1024, 1, 1)]
+void MoveParticleTrails(uint3 dispatchID : SV_DispatchThreadID)
+{
+	int trailHeadID = dispatchID.x;
+
+	/* FIND VELOCITIES THAT WILL AFFECT THE PARTICLE TRAIL HEAD'S MOVEMENT */
+	int bottomX = floor(trailHeadBuffer[trailHeadID].position.x);
+	int bottomY = floor(trailHeadBuffer[trailHeadID].position.y);
+	int bottomZ = floor(trailHeadBuffer[trailHeadID].position.z);
+	int topX = ceil(trailHeadBuffer[trailHeadID].position.x);
+	int topY = ceil(trailHeadBuffer[trailHeadID].position.y);
+	int topZ = ceil(trailHeadBuffer[trailHeadID].position.z);
+
+	float x = trailHeadBuffer[trailHeadID].position.x - (float)bottomX;
+	float y = trailHeadBuffer[trailHeadID].position.y - (float)bottomY;
+	float z = trailHeadBuffer[trailHeadID].position.z - (float)bottomZ;
+
+	// SAMPLE VELOCITY FROM OUR PAINTED FLOW MAP
+	float3 baseVelocity = baseFlowMap[findID(bottomX, bottomY, bottomZ)] * (1 - x) * (1 - y) * (1 - z) +
+		baseFlowMap[findID(topX, bottomY, bottomZ)] * x * (1 - y) * (1 - z) +
+		baseFlowMap[findID(bottomX, topY, bottomZ)] * (1 - x) * y * (1 - z) +
+		baseFlowMap[findID(bottomX, bottomY, topZ)] * (1 - x) * (1 - y) * z +
+		baseFlowMap[findID(topX, bottomY, topZ)] * x * (1 - y) * z +
+		baseFlowMap[findID(bottomX, topY, topZ)] * (1 - x) * y * z +
+		baseFlowMap[findID(topX, topY, bottomZ)] * x * y * (1 - z) +
+		baseFlowMap[findID(topX, topY, topZ)] * x * y * z;
+
+	// SAMPLE VELOCITY FROM THE USER GENERATED FLOW MAP
+	float3 userVelocity = userFlowMap[findID(bottomX, bottomY, bottomZ)] * (1 - x) * (1 - y) * (1 - z) +
+		userFlowMap[findID(topX, bottomY, bottomZ)] * x * (1 - y) * (1 - z) +
+		userFlowMap[findID(bottomX, topY, bottomZ)] * (1 - x) * y * (1 - z) +
+		userFlowMap[findID(bottomX, bottomY, topZ)] * (1 - x) * (1 - y) * z +
+		userFlowMap[findID(topX, bottomY, topZ)] * x * (1 - y) * z +
+		userFlowMap[findID(bottomX, topY, topZ)] * (1 - x) * y * z +
+		userFlowMap[findID(topX, topY, bottomZ)] * x * y * (1 - z) +
+		userFlowMap[findID(topX, topY, topZ)] * x * y * z;
+
+	//float baseSpeed = sqrt(baseVelocity.x * baseVelocity.x + baseVelocity.y * baseVelocity.y + baseVelocity.z * baseVelocity.z);
+	float baseVelocityMagnitude = length(baseVelocity);
+	float3 baseDirection = baseVelocity / baseVelocityMagnitude;
+
+	//float userSpeed = sqrt(userVelocity.x * userVelocity.x + userVelocity.y * userVelocity.y + userVelocity.z * userVelocity.z);
+	float userVelocityMagnitude = length(userVelocity);
+	float3 userDirection = userVelocity / userVelocityMagnitude;
+
+	float3 direction = baseDirection + userDirection;
+	trailHeadBuffer[trailHeadID].direction += baseDirection;
+	// normalise direction so we don't blow out the magnitude between frames and affect the resultant direction
+	trailHeadBuffer[trailHeadID].direction = trailHeadBuffer[trailHeadID].direction / length(trailHeadBuffer[trailHeadID].direction);
+
+	if (trailHeadBuffer[trailHeadID].speed < baseSpeed)
+		trailHeadBuffer[trailHeadID].speed = baseSpeed;
+
+	trailHeadBuffer[trailHeadID].speed += userVelocityMagnitude;
+	trailHeadBuffer[trailHeadID].speed *= drag;
+
+	// UPDATE THE TRAIL HEAD'S POSITION
+	trailHeadBuffer[trailHeadID].position += trailHeadBuffer[trailHeadID].direction * trailHeadBuffer[trailHeadID].speed * timeStep;
+
+	for (int i = 0; i < particlesPerTrail; i++)
+	{
+		int trailParticleID = trailHeadID * particlesPerTrail + i;
+		trailParticleBuffer[trailParticleID].position = trailParticleBufferPrev[trailParticleID+1].position;
+		trailParticleBuffer[trailParticleID].albedo = float3(1.0f, 1.0f, 1.0f);
+		trailParticleBuffer[trailParticleID].emissive = float3(0.0f, 0.0f, 0.0f);
+		trailParticleBuffer[trailParticleID].alpha = 1.0f;
+		trailParticleBuffer[trailParticleID].scale = i+1;
+	}
+
+	int frontParticleID = trailHeadID * particlesPerTrail + particlesPerTrail;
+	trailParticleBuffer[frontParticleID].position = trailHeadBuffer[trailHeadID].position;
+	trailParticleBuffer[frontParticleID].albedo = float3(1.0f, 1.0f, 1.0f);
+	trailParticleBuffer[frontParticleID].emissive = float3(5.0f, 5.0f, 1.0f);
+	trailParticleBuffer[frontParticleID].alpha = 1.0f;
+	trailParticleBuffer[frontParticleID].scale = particlesPerTrail;
+
+	// reset particle head when it reaches end of lifespan when they die
+	trailHeadBuffer[trailHeadID].timeAlive += timeStep;
+	if (trailHeadBuffer[trailHeadID].timeAlive >= trailHeadBuffer[trailHeadID].lifeSpan)
+	{
+		trailHeadBuffer[trailHeadID].direction = float3(0, 0, 0);
+		trailHeadBuffer[trailHeadID].timeAlive = 0.0f;
+		trailHeadBuffer[trailHeadID].position = trailHeadBuffer[trailHeadID].spawnPosition;
+		trailHeadBuffer[trailHeadID].speed = baseSpeed;
+	}
+}
+
+

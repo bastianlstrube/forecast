@@ -18,7 +18,6 @@ public struct FluidSource
 
 public class OSCReceiver : MonoBehaviour
 {
-
     public ParticleSimulation particleSimulation;
 
     [HideInInspector]
@@ -85,7 +84,7 @@ public class OSCReceiver : MonoBehaviour
     {
         string msgString = Osc.OscMessageToString(oscMessage); //the message and value combined
         //string msgAddress = oscMessage.Address; //the message address
-
+        
         string[] msgComponents = msgString.Split(' ');
         int id = int.Parse(msgComponents[1]);
         float lifespan = float.Parse(msgComponents[2]);
@@ -103,14 +102,17 @@ public class OSCReceiver : MonoBehaviour
 
         for (int i = 7; i < numContourPoints; i++)
         {
-            thisSource.position = new Vector3(float.Parse(msgComponents[i]), float.Parse(msgComponents[i++]), 0);
-            thisSource.velocity = thisSource.position - new Vector3(float.Parse(msgComponents[i++]), float.Parse(msgComponents[i++]), 0);
+            thisSource.position = new Vector3(float.Parse(msgComponents[i++]), float.Parse(msgComponents[i++]), 0);
+            thisSource.velocity = thisSource.position - new Vector3(float.Parse(msgComponents[i++]), float.Parse(msgComponents[i]), 0);
             velocitySourceList.Add(thisSource);
 
             velocitySourceArray[sourceCount].position = thisTransform + thisRotation * new Vector3(thisSource.position.x / 640.0f * thisScale.x, thisSource.position.y / 480.0f * thisScale.y, thisSource.position.z * thisScale.z);
             //velocitySourceArray[sourceCount].position = thisSource.position;
             velocitySourceArray[sourceCount].velocity = thisSource.velocity;
+            //*0.1f;
+
             sourceCount++;
+
             //Vector3 velocitySourceCurrent = new Vector3(float.Parse(msgComponents[i]), float.Parse(msgComponents[i++]), 0);
             //Vector3 velocitySourcePrevious = new Vector3(float.Parse(msgComponents[i++]), float.Parse(msgComponents[i++]), 0);
         }
@@ -143,19 +145,21 @@ public class OSCReceiver : MonoBehaviour
                     //gameObject.transform.localScale = Vector3.one * 0.1f;
                     Light light = gameObject.AddComponent<Light>();
                     light.color = Color.cyan;
-                    light.intensity = 2.0f;
+                    light.intensity = 3.0f;
                     light.range = 0.0f;
+                    light.shadows = LightShadows.Soft;
+                    
                     //light.intensity = fluidSources[i].lifespan;
                     centroidList.Add(i, gameObject);
                 }
                 centroidList[i].SetActive(true);
 
-                if (centroidList[i].GetComponent<Light>().range < centroids[i].lifespan)
+                if (centroidList[i].GetComponent<Light>().range < centroids[i].lifespan*0.3f)
                 {
                     centroidList[i].GetComponent<Light>().range += 0.05f;
                 } else
                 {
-                    centroidList[i].GetComponent<Light>().range = centroids[i].lifespan;
+                    centroidList[i].GetComponent<Light>().range = centroids[i].lifespan*0.3f;
                 }
                 centroidList[i].transform.position = transform.position + transform.rotation * new Vector3(centroids[i].position.x / 640.0f * transform.localScale.x, centroids[i].position.y / 480.0f * transform.localScale.y, centroids[i].position.z * transform.localScale.z);
             }
@@ -168,15 +172,26 @@ public class OSCReceiver : MonoBehaviour
                 }
             }
         }
-
-        //particleSimulation.UpdateVelocitySourcesBuffer();
         /*
+        for (int i = 0; i < velocitySourceArray.Length; i++)
+        {
+            if (velocitySourceArray[i].position.sqrMagnitude > 0)
+            {
+                GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                cube.transform.position = velocitySourceArray[i].position;
+                cube.transform.localScale = Vector3.one * 0.1f;
+            }
+        }
+        */
+        particleSimulation.ResetRealtimeFlowMapBuffer();
+        particleSimulation.UpdateVelocitySourcesBuffer();
+        
         for (int i = 0; i < maxSourceCount; i++)
         {
             velocitySourceArray[i].position = Vector3.zero;
             velocitySourceArray[i].velocity = Vector3.zero;
         }
-        */
+        
 
         sourceCount = 0;
         velocitySourceList.Clear();

@@ -1,0 +1,23 @@
+﻿#pragma kernel UpdateParticleTrailBuffers
+
+// the particles in the trail, follow the head
+struct trailParticle
+{
+	float3 position;
+	float3 albedo;
+	float3 emissive;
+	float alpha;
+	float scale;
+};
+
+RWStructuredBuffer<trailParticle> trailParticleBuffer;	// array of particles in the trail
+RWStructuredBuffer<trailParticle> trailParticleBufferPrev;	// array of particles in the trail
+
+[numthreads(1024, 1, 1)]
+void UpdateParticleTrailBuffers(uint3 dispatchID : SV_DispatchThreadID)
+{
+	trailParticleBufferPrev[dispatchID.x] = trailParticleBuffer[dispatchID.x];
+
+}
+
+

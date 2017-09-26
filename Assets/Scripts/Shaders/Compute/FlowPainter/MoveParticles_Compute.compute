@@ -18,7 +18,7 @@ struct particle
 	float timeElapsed;
 	float lifeSpan;
 	float3 spawnPosition;
-	float drag;
+	float alpha;
 	float velocity;
 	float baseVelocity;
 	float scale;
@@ -58,7 +58,7 @@ float2 rotate(float2 p, float a) {
 	return float2(p.x*cos(a) - p.y*sin(a), p.x*sin(a) + p.y*cos(a));
 }
 
-[numthreads(512, 1, 1)]
+[numthreads(1024, 1, 1)]
 void MoveParticles(uint3 dispatchID : SV_DispatchThreadID)
 {
 	// calculate total threads in the each dimension of whole box volume
@@ -109,7 +109,8 @@ void MoveParticles(uint3 dispatchID : SV_DispatchThreadID)
 
 	float velocity2 = value2.x * value2.x + value2.y * value2.y + value2.z * value2.z;
 
-	particleBuffer[particleID].velocity += (velocity+velocity2) * 0.1f;
+	//particleBuffer[particleID].velocity += (velocity+velocity2) * 0.1f;
+	particleBuffer[particleID].velocity += velocity+velocity2;
 
 	particleBuffer[particleID].direction += value + value2;
 	particleBuffer[particleID].velocity *= drag;
@@ -124,18 +125,13 @@ void MoveParticles(uint3 dispatchID : SV_DispatchThreadID)
 
 	particleBuffer[particleID].direction = particleBuffer[particleID].direction / magnitude;
 	
-	float alphaScale = saturate(velocityAlpha + magnitude / 2);
+	float alphaScale = saturate(velocityAlpha*3.0f + particleBuffer[particleID].velocity*3.0f);
 	float3 scaledPosition = particleBuffer[particleID].position / velocityBoxSize;
 
 	
 	//particleBuffer[particleID].color = float4(scaledPosition.x, scaledPosition.y, scaledPosition.z, (1 - percentOfLifespan)*alphaScale);
 	
-	float pulseToDepth = saturate((particleBuffer[particleID].position.z - pulse*velocityBoxSize.z) / velocityBoxSize.z);
-	//particleBuffer[particleID].color = float4(pulseToDepth*5.0f, 0.0f, 5.0f, pulseToDepth + 0.1f);
-
-	particleBuffer[particleID].color = float4(scaledPosition.y, scaledPosition.x, scaledPosition.z-0.5f, alphaScale);
-
-	particleBuffer[particleID].emissive = float4(pulseToDepth*0.1f, pulseToDepth*0.1f, pulseToDepth*3.0f, pulseToDepth * 10.0f);
+	
 
 	/*PERSIAN CARPET*/
 	/*
@@ -158,6 +154,17 @@ void MoveParticles(uint3 dispatchID : SV_DispatchThreadID)
 	particleBuffer[particleID].color = float4(hsv(h, 1.0, smoothstep(-1.0, 3.0, length(p))), 1.0f);
 	*/
 	//particleBuffer[particleID].color = float4(1.0f, 1.0f, 1.0f, 1.0f);
+
+
 	particleBuffer[particleID].position += particleBuffer[particleID].direction * particleBuffer[particleID].velocity;
+
+	float pulseToDepth = saturate((particleBuffer[particleID].position.z - pulse*velocityBoxSize.z) / velocityBoxSize.z);
+	//particleBuffer[particleID].color = float4(pulseToDepth*5.0f, 0.0f, 5.0f, pulseToDepth + 0.1f);
+
+	particleBuffer[particleID].color = float4(scaledPosition.y, scaledPosition.x, scaledPosition.z - 0.5f, alphaScale);
+	
+	particleBuffer[particleID].alpha = alphaScale;
+
+	particleBuffer[particleID].emissive = float4(10.0, 5.0, 3.0, 0.0f);// 1.0f-scaledPosition.z*0.2f);// alphaScale*pulseToDepth);
 }
 
